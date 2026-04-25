@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>make_urnails.up</title>
+  <link rel="stylesheet" href="nails_planner.css">
+</head>
+<body>
+
+<header>
+  <div class="logo">💅 make_urnails.up</div>
+  <div class="nav">
+    <button class="ibtn" id="prev">‹</button>
+    <div class="period" id="period"></div>
+    <button class="ibtn" id="next">›</button>
+  </div>
+  <div class="toggle">
+    <button class="tvb on" id="btnM">Mois</button>
+    <button class="tvb" id="btnW">Semaine</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="sb-head">
+      <div class="sb-label">Rendez-vous du</div>
+      <div class="sb-date" id="sbDate">—</div>
+    </div>
+    <div class="sb-list" id="sbList"></div>
+    <button class="sb-add" id="sbAdd">
+      <span class="icon-add">+</span> Nouveau rendez-vous
+    </button>
+  </aside>
+
+  <main id="cal"></main>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="ov hidden" id="dov">
+  <div class="modal">
+    <div class="mhdr">
+      <div>
+        <div class="mhdr-sub">Fiche cliente</div>
+        <div class="mtit" id="dtit"></div>
+      </div>
+      <button class="mclose" id="closeDetail">✕</button>
+    </div>
+    <div class="mbdy" id="dbdy"></div>
+    <div class="mft">
+      <button class="btn bdd" id="delBtn">🗑 Supprimer</button>
+      <button class="btn bn" id="closeDBtn">Fermer</button>
+      <button class="btn bp" id="editBtn">✏️ Modifier</button>
+    </div>
+  </div>
+</div>
+
+<!-- FORM MODAL -->
+<div class="ov hidden" id="fov">
+  <div class="modal">
+    <div class="mhdr">
+      <div>
+        <div class="mhdr-sub">make_urnails.up</div>
+        <div class="mtit" id="ftit">Nouveau rendez-vous</div>
+      </div>
+      <button class="mclose" id="closeForm">✕</button>
+    </div>
+    <div class="mbdy">
+      <div class="fsec">
+        <div class="fsec-title">👤 Cliente</div>
+        <div class="frow">
+          <div class="fg">
+            <label class="fl">Prénom *</label>
+            <input class="fi" id="fp" placeholder="Ex: Marie" autocomplete="off">
+          </div>
+          <div class="fg">
+            <label class="fl">Nom *</label>
+            <input class="fi" id="fn" placeholder="Ex: Dupont" autocomplete="off">
+          </div>
+        </div>
+      </div>
+      <div class="fsec">
+        <div class="fsec-title">📅 Date &amp; heure</div>
+        <div class="frow">
+          <div class="fg">
+            <label class="fl">Date *</label>
+            <input class="fi" type="date" id="fd">
+          </div>
+          <div class="fg">
+            <label class="fl">Heure *</label>
+            <input class="fi" type="time" id="fh">
+          </div>
+        </div>
+      </div>
+      <div class="fsec">
+        <div class="fsec-title">💅 Prestation *</div>
+        <div class="pgrid" id="pgrid"></div>
+        <label class="bijoux-label">
+          <input type="checkbox" id="fBijoux" class="bijoux-cb">
+          <span>💎 Bijoux</span>
+        </label>
+      </div>
+      <div class="fsec mb-0">
+        <div class="fsec-title">📝 Remarque</div>
+        <div class="fg">
+          <input class="fi" id="fr" placeholder="Ex: motifs floraux, allergie acrylique...">
+        </div>
+      </div>
+      <div class="ferr" id="ferr">Veuillez remplir tous les champs obligatoires.</div>
+    </div>
+    <div class="mft">
+      <button class="btn bn" id="cancelBtn">Annuler</button>
+      <button class="btn bp" id="saveBtn">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script src="nails_planner.js"></script>
+</body>
+</html>
