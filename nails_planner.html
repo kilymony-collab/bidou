@@ -116,9 +116,12 @@
             <input class="fi" type="tel" id="mTel" placeholder="Ex: 06 12 34 56 78">
           </div>
         </div>
-        <div class="fg" style="max-width:48%">
-          <label class="fl">Âge *</label>
-          <input class="fi" type="number" id="mAge" placeholder="Ex: 25" min="18" max="99">
+        <div class="frow">
+          <div class="fg">
+            <label class="fl">Âge *</label>
+            <input class="fi" type="number" id="mAge" placeholder="Ex: 25" min="18" max="99">
+          </div>
+          <div class="fg"></div>
         </div>
       </div>
 
@@ -152,8 +155,8 @@
         </div>
 
         <!-- Taille des ongles (conditionnel) -->
-        <div class="hidden" id="tailleSection" style="margin-top:10px">
-          <label class="fl">Taille des ongles *</label>
+        <div class="hidden" id="tailleSection">
+          <label class="fl" style="margin-top:10px">Taille des ongles *</label>
           <div class="taille-grid">
             <button type="button" class="taille-opt" data-v="Court">Court</button>
             <button type="button" class="taille-opt" data-v="Moyen">Moyen</button>
@@ -161,21 +164,21 @@
           </div>
         </div>
 
-        <label class="bijoux-label" style="margin-top:12px">
+        <label class="bijoux-label">
           <input type="checkbox" id="mBijoux" class="bijoux-cb">
           <span>💎 Bijoux</span>
         </label>
       </div>
 
       <!-- Remarque -->
-      <div class="fsec mb-0">
+      <div class="fsec">
         <div class="fsec-title">📝 Remarque <span class="opt-tag">optionnel</span></div>
         <div class="fg">
           <input class="fi" id="mNotes" placeholder="Ex: motifs floraux, allergie acrylique…">
         </div>
       </div>
 
-      <div class="ferr" id="manErr">Veuillez remplir tous les champs obligatoires.</div>
+      <div class="ferr" id="manErr"></div>
     </div>
     <div class="mft">
       <button class="btn bn" id="cancelManBtn">Annuler</button>

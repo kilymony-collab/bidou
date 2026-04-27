@@ -580,8 +580,10 @@ function openManualForm() {
   ['mPrenom','mNom','mEmail','mTel','mNotes'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('mAge').value  = '';
   document.getElementById('mDate').value = '';
-  document.getElementById('mBijoux').checked = false;
-  document.getElementById('manErr').style.display = 'none';
+  document.getElementById('mBijoux').checked   = false;
+  const errEl0 = document.getElementById('manErr');
+  errEl0.textContent  = '';
+  errEl0.style.display = 'none';
 
   selectedSlot        = null;
   selectedTaille      = null;
