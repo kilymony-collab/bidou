@@ -569,32 +569,42 @@ document.addEventListener('keydown', e => {
 
 // ── Manual booking form ────────────────────────────────────────────────────
 
+// Prestations qui nécessitent le choix de taille
 const PRESTS_TAILLE = ['Pose simple', 'Nail art', 'Freestyle chargée'];
+// Ces 3 prestations sont mutuellement exclusives entre elles
+const PRESTS_EXCLU  = new Set(['Pose simple', 'Nail art', 'Freestyle chargée']);
 
-let selectedSlot        = null;   // ISO string of the chosen Cal.com slot
-let selectedTaille      = null;   // 'Court' | 'Moyen' | 'Long'
-let selectedPrestation  = null;   // selected prestation string
+let selectedSlot       = null;        // ISO string du créneau Cal.com choisi
+let selectedTaille     = null;        // 'Court' | 'Moyen' | 'Long'
+let selectedPrestations = new Set();  // prestations sélectionnées (multi)
+
+function formatSlotDayHeader(dateStr) {
+  const d    = new Date(dateStr + 'T12:00:00');
+  const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+  const mths = ['jan.','fév.','mar.','avr.','mai','juin','juil.','août','sep.','oct.','nov.','déc.'];
+  return days[d.getDay()] + '. ' + pad2(d.getDate()) + ' ' + mths[d.getMonth()];
+}
 
 function openManualForm() {
   // Reset all fields
   ['mPrenom','mNom','mEmail','mTel','mNotes'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('mAge').value  = '';
   document.getElementById('mDate').value = '';
-  document.getElementById('mBijoux').checked   = false;
+  document.getElementById('mBijoux').checked = false;
   const errEl0 = document.getElementById('manErr');
-  errEl0.textContent  = '';
+  errEl0.textContent   = '';
   errEl0.style.display = 'none';
 
   selectedSlot        = null;
   selectedTaille      = null;
-  selectedPrestation  = null;
+  selectedPrestations = new Set();
 
   // Hide dynamic sections
   document.getElementById('slotsSection').classList.add('hidden');
   document.getElementById('slotsLoading').classList.add('hidden');
   document.getElementById('slotsEmpty').classList.add('hidden');
   document.getElementById('tailleSection').classList.add('hidden');
-  document.getElementById('slotsGrid').innerHTML    = '';
+  document.getElementById('slotsGrid').innerHTML     = '';
   document.getElementById('slotsDayHdr').textContent = '';
 
   // Reset prestation + taille buttons
@@ -640,7 +650,7 @@ document.getElementById('mDate').addEventListener('change', async function () {
       return;
     }
 
-    document.getElementById('slotsDayHdr').textContent = formatFullDate(date);
+    document.getElementById('slotsDayHdr').textContent = formatSlotDayHeader(date);
 
     slotsGrid.innerHTML = slots.map(s => {
       const d     = new Date(s.start);
@@ -664,13 +674,32 @@ document.getElementById('mDate').addEventListener('change', async function () {
   }
 });
 
-// Prestation grid buttons
+// Prestation grid — multi-sélection avec exclusivité
 document.querySelectorAll('.popt').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.popt').forEach(b => b.classList.remove('on'));
-    btn.classList.add('on');
-    selectedPrestation = btn.dataset.v;
-    const showTaille = PRESTS_TAILLE.includes(selectedPrestation);
+    const v = btn.dataset.v;
+
+    if (selectedPrestations.has(v)) {
+      // Désélectionner
+      selectedPrestations.delete(v);
+      btn.classList.remove('on');
+    } else {
+      // Si la prestation cliquée est dans le groupe exclusif,
+      // désélectionner toute autre prestation exclusive déjà choisie
+      if (PRESTS_EXCLU.has(v)) {
+        PRESTS_EXCLU.forEach(excl => {
+          if (excl !== v && selectedPrestations.has(excl)) {
+            selectedPrestations.delete(excl);
+            document.querySelector(`.popt[data-v="${excl}"]`).classList.remove('on');
+          }
+        });
+      }
+      selectedPrestations.add(v);
+      btn.classList.add('on');
+    }
+
+    // Afficher taille si au moins une prestation nécessitant la taille est sélectionnée
+    const showTaille = [...selectedPrestations].some(p => PRESTS_TAILLE.includes(p));
     document.getElementById('tailleSection').classList.toggle('hidden', !showTaille);
     if (!showTaille) {
       selectedTaille = null;
@@ -690,24 +719,24 @@ document.querySelectorAll('.taille-opt').forEach(btn => {
 
 // Save manual booking
 document.getElementById('saveManBtn').addEventListener('click', async () => {
-  const prenom    = document.getElementById('mPrenom').value.trim();
-  const nom       = document.getElementById('mNom').value.trim();
-  const email     = document.getElementById('mEmail').value.trim();
-  const telephone = document.getElementById('mTel').value.trim();
-  const age       = document.getElementById('mAge').value.trim();
-  const prestation = selectedPrestation;
-  const bijoux    = document.getElementById('mBijoux').checked;
-  const notes     = document.getElementById('mNotes').value.trim();
-  const errEl     = document.getElementById('manErr');
+  const prenom     = document.getElementById('mPrenom').value.trim();
+  const nom        = document.getElementById('mNom').value.trim();
+  const email      = document.getElementById('mEmail').value.trim();
+  const telephone  = document.getElementById('mTel').value.trim();
+  const age        = document.getElementById('mAge').value.trim();
+  const prestation = [...selectedPrestations].join(' · ');
+  const bijoux     = document.getElementById('mBijoux').checked;
+  const notes      = document.getElementById('mNotes').value.trim();
+  const errEl      = document.getElementById('manErr');
 
   // Validation
-  const needTaille = PRESTS_TAILLE.includes(prestation);
+  const needTaille = [...selectedPrestations].some(p => PRESTS_TAILLE.includes(p));
   let errMsg = '';
-  if (!prenom || !nom || !email)      errMsg = 'Prénom, nom et email sont obligatoires.';
-  else if (!age || Number(age) < 18)  errMsg = 'Âge obligatoire (18 ans minimum).';
-  else if (!selectedSlot)             errMsg = 'Veuillez choisir un créneau.';
-  else if (!prestation)               errMsg = 'Veuillez choisir une prestation.';
-  else if (needTaille && !selectedTaille) errMsg = 'Veuillez choisir une taille d\'ongles.';
+  if (!prenom || !nom || !email)           errMsg = 'Prénom, nom et email sont obligatoires.';
+  else if (!age || Number(age) < 18)       errMsg = 'Âge obligatoire (18 ans minimum).';
+  else if (!selectedSlot)                  errMsg = 'Veuillez choisir un créneau.';
+  else if (selectedPrestations.size === 0) errMsg = 'Veuillez choisir au moins une prestation.';
+  else if (needTaille && !selectedTaille)  errMsg = 'Veuillez choisir une taille d\'ongles.';
 
   if (errMsg) {
     errEl.textContent     = errMsg;

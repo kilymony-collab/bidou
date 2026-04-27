@@ -1163,36 +1163,32 @@ aside {
 }
 
 .slots-day-hdr {
-  font-size: .68rem;
+  font-size: .78rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .7px;
-  color: var(--mu);
-  margin-bottom: 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--bd);
+  color: var(--tx);
+  margin-bottom: 10px;
 }
 
 .slots-grid {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
 }
 
 .slot-btn {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  gap: 10px;
   width: 100%;
-  padding: 13px 16px;
-  border-radius: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
   border: 1.5px solid var(--bd);
   background: var(--s2);
   color: var(--tx);
   cursor: pointer;
   font-size: 1rem;
   font-weight: 700;
-  text-align: left;
   transition: .15s;
 }
 
