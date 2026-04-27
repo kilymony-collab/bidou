@@ -29,8 +29,7 @@ export default async function handler(req, res) {
     const formula = encodeURIComponent(
       "OR({statut_interne}='en_attente_validation',{statut_interne}='accepte',{statut_interne}='en_attente_formulaire')"
     );
-    const sort = encodeURIComponent('[{"field":"date_rdv","direction":"asc"},{"field":"heure_rdv","direction":"asc"}]');
-    const url = `https://api.airtable.com/v0/${baseId}/${AIRTABLE_TABLE}?filterByFormula=${formula}&sort=${sort}`;
+    const url = `https://api.airtable.com/v0/${baseId}/${AIRTABLE_TABLE}?filterByFormula=${formula}&sort[0][field]=date_rdv&sort[0][direction]=asc&sort[1][field]=heure_rdv&sort[1][direction]=asc`;
 
     try {
       const airtableRes = await fetch(url, {
