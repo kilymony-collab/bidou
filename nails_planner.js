@@ -644,6 +644,8 @@ document.getElementById('mDate').addEventListener('change', async function () {
 
     slotsLoading.classList.add('hidden');
 
+    if (!res.ok) throw new Error(data.error || `Erreur HTTP ${res.status}`);
+
     const slots = (data.data && data.data[date]) || [];
     if (!slots.length) {
       slotsEmpty.classList.remove('hidden');

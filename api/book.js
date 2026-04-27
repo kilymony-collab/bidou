@@ -25,7 +25,7 @@ export default async function handler(req, res) {
 
     const start = `${date}T00:00:00Z`;
     const end   = `${date}T23:59:59Z`;
-    const url   = `https://api.cal.com/v2/slots?eventTypeId=${CAL_EVENT_TYPE_ID}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+    const url   = `https://api.cal.com/v2/slots?eventTypeId=${CAL_EVENT_TYPE_ID}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}&timeZone=Europe%2FParis`;
 
     try {
       const r    = await fetch(url, {
