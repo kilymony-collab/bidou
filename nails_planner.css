@@ -985,6 +985,85 @@ aside {
   border-top: 1px solid var(--bd);
 }
 
+/* MANUAL BOOKING MODAL */
+.man-modal {
+  max-width: 520px;
+}
+
+/* SLOTS */
+.slots-msg {
+  font-size: .76rem;
+  color: var(--mu);
+  padding: 6px 2px;
+  font-style: italic;
+}
+
+.slots-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.slot-btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1.5px solid var(--bd);
+  background: var(--s2);
+  color: var(--mu);
+  cursor: pointer;
+  font-size: .8rem;
+  font-weight: 600;
+  transition: .15s;
+}
+
+.slot-btn:hover {
+  border-color: var(--pk2);
+  color: var(--tx);
+}
+
+.slot-btn.on {
+  background: linear-gradient(135deg, var(--pk3), var(--pk));
+  border-color: var(--pk);
+  color: #fff;
+}
+
+/* TAILLE DES ONGLES */
+.taille-grid {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.taille-opt {
+  flex: 1;
+  padding: 8px 6px;
+  border-radius: 8px;
+  border: 1.5px solid var(--bd);
+  background: var(--s2);
+  color: var(--mu);
+  cursor: pointer;
+  font-size: .8rem;
+  font-weight: 600;
+  transition: .15s;
+}
+
+.taille-opt:hover {
+  border-color: var(--pk2);
+  color: var(--tx);
+}
+
+.taille-opt.on {
+  background: linear-gradient(135deg, var(--pk3), var(--pk));
+  border-color: var(--pk);
+  color: #fff;
+}
+
+/* FORM SELECT */
+select.fi {
+  cursor: pointer;
+}
+
 /* MOBILE */
 @media (max-width: 768px) {
   body { overflow: auto; height: auto; border: none; }

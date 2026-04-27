@@ -1,9 +1,7 @@
 {
   "functions": {
-    "api/rdv.js": {
-      "memory": 128,
-      "maxDuration": 10
-    }
+    "api/rdv.js":  { "memory": 128, "maxDuration": 10 },
+    "api/book.js": { "memory": 128, "maxDuration": 15 }
   },
   "rewrites": [
     { "source": "/", "destination": "/nails_planner.html" }

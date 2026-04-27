@@ -567,5 +567,185 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeDetail(); closeDemandes(); }
 });
 
+// ── Manual booking form ────────────────────────────────────────────────────
+
+const PRESTS_TAILLE = ['Pose simple', 'Nail art', 'Freestyle chargée'];
+
+let selectedSlot    = null;   // ISO string of the chosen Cal.com slot
+let selectedTaille  = null;   // 'Court' | 'Moyen' | 'Long'
+
+function openManualForm() {
+  // Reset all fields
+  ['mPrenom','mNom','mEmail','mTel','mNotes'].forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('mAge').value        = '';
+  document.getElementById('mDate').value       = '';
+  document.getElementById('mPrestation').value = '';
+  document.getElementById('mBijoux').checked   = false;
+  document.getElementById('manErr').style.display = 'none';
+
+  selectedSlot   = null;
+  selectedTaille = null;
+
+  // Hide dynamic sections
+  document.getElementById('slotsSection').classList.add('hidden');
+  document.getElementById('slotsLoading').classList.add('hidden');
+  document.getElementById('slotsEmpty').classList.add('hidden');
+  document.getElementById('tailleSection').classList.add('hidden');
+  document.getElementById('slotsGrid').innerHTML = '';
+
+  // Reset taille buttons
+  document.querySelectorAll('.taille-opt').forEach(b => b.classList.remove('on'));
+
+  // Set min date to today
+  document.getElementById('mDate').min = todayDateString();
+
+  document.getElementById('manOv').classList.remove('hidden');
+  setTimeout(() => document.getElementById('mPrenom').focus(), 80);
+}
+
+function closeManualForm() {
+  document.getElementById('manOv').classList.add('hidden');
+}
+
+// Load available slots when date changes
+document.getElementById('mDate').addEventListener('change', async function () {
+  const date = this.value;
+  if (!date) return;
+
+  const slotsSection = document.getElementById('slotsSection');
+  const slotsLoading = document.getElementById('slotsLoading');
+  const slotsEmpty   = document.getElementById('slotsEmpty');
+  const slotsGrid    = document.getElementById('slotsGrid');
+
+  slotsSection.classList.add('hidden');
+  slotsEmpty.classList.add('hidden');
+  slotsLoading.classList.remove('hidden');
+  slotsGrid.innerHTML = '';
+  selectedSlot = null;
+
+  try {
+    const res  = await fetch(`/api/book?date=${date}`);
+    const data = await res.json();
+
+    slotsLoading.classList.add('hidden');
+
+    const slots = (data.data && data.data[date]) || [];
+    if (!slots.length) {
+      slotsEmpty.classList.remove('hidden');
+      return;
+    }
+
+    slotsGrid.innerHTML = slots.map(s => {
+      const d     = new Date(s.start);
+      const label = d.toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' });
+      return `<button type="button" class="slot-btn" data-iso="${escHtml(s.start)}">${label}</button>`;
+    }).join('');
+
+    slotsSection.classList.remove('hidden');
+
+    slotsGrid.querySelectorAll('.slot-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        slotsGrid.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('on'));
+        btn.classList.add('on');
+        selectedSlot = btn.dataset.iso;
+      });
+    });
+  } catch (e) {
+    slotsLoading.classList.add('hidden');
+    slotsEmpty.classList.remove('hidden');
+    slotsEmpty.textContent = '⚠️ Erreur : ' + e.message;
+  }
+});
+
+// Show/hide taille des ongles based on prestation
+document.getElementById('mPrestation').addEventListener('change', function () {
+  const p = this.value;
+  const showTaille = PRESTS_TAILLE.includes(p);
+  document.getElementById('tailleSection').classList.toggle('hidden', !showTaille);
+  if (!showTaille) {
+    selectedTaille = null;
+    document.querySelectorAll('.taille-opt').forEach(b => b.classList.remove('on'));
+  }
+});
+
+// Taille buttons
+document.querySelectorAll('.taille-opt').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.taille-opt').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    selectedTaille = btn.dataset.v;
+  });
+});
+
+// Save manual booking
+document.getElementById('saveManBtn').addEventListener('click', async () => {
+  const prenom     = document.getElementById('mPrenom').value.trim();
+  const nom        = document.getElementById('mNom').value.trim();
+  const email      = document.getElementById('mEmail').value.trim();
+  const telephone  = document.getElementById('mTel').value.trim();
+  const age        = document.getElementById('mAge').value.trim();
+  const prestation = document.getElementById('mPrestation').value;
+  const bijoux     = document.getElementById('mBijoux').checked;
+  const notes      = document.getElementById('mNotes').value.trim();
+  const errEl      = document.getElementById('manErr');
+
+  // Validation
+  const needTaille = PRESTS_TAILLE.includes(prestation);
+  let errMsg = '';
+  if (!prenom || !nom || !email)      errMsg = 'Prénom, nom et email sont obligatoires.';
+  else if (!age || Number(age) < 18)  errMsg = 'Âge obligatoire (18 ans minimum).';
+  else if (!selectedSlot)             errMsg = 'Veuillez choisir un créneau.';
+  else if (!prestation)               errMsg = 'Veuillez choisir une prestation.';
+  else if (needTaille && !selectedTaille) errMsg = 'Veuillez choisir une taille d\'ongles.';
+
+  if (errMsg) {
+    errEl.textContent     = errMsg;
+    errEl.style.display   = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+
+  const btn = document.getElementById('saveManBtn');
+  btn.disabled     = true;
+  btn.textContent  = '⏳ Enregistrement…';
+
+  try {
+    const res = await fetch('/api/book', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prenom, nom, email, telephone,
+        age, prestation, bijoux,
+        taille_ongles: selectedTaille || '',
+        notes,
+        slotStart: selectedSlot,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur serveur');
+
+    closeManualForm();
+    await loadData();
+    // Switch to the day of the new booking
+    selectedDate = data.dateRdv;
+    setSidebarTab('rdv');
+    renderSidebar();
+    render();
+    toast('RDV ajouté ✓', prenom + ' ' + nom + ' — ' + data.dateRdv + ' à ' + data.heureRdv);
+  } catch (e) {
+    errEl.textContent   = '⚠️ Erreur : ' + e.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '💾 Enregistrer';
+  }
+});
+
+document.getElementById('sbAdd').addEventListener('click', openManualForm);
+document.getElementById('cancelManBtn').addEventListener('click', closeManualForm);
+document.getElementById('closeMan').addEventListener('click', closeManualForm);
+document.getElementById('manOv').addEventListener('click', e => { if (e.target.id === 'manOv') closeManualForm(); });
+
 // ── Init ───────────────────────────────────────────────────────────────────
 loadData();

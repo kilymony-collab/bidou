@@ -39,6 +39,9 @@
       <div class="sb-date" id="sbDate">—</div>
     </div>
     <div class="sb-list" id="sbList"></div>
+    <button class="sb-add" id="sbAdd">
+      <span class="icon-add">+</span> Nouveau rendez-vous
+    </button>
   </aside>
 
   <main id="cal"></main>
@@ -74,6 +77,112 @@
     <div class="mbdy" id="demList"></div>
     <div class="mft">
       <button class="btn bn" id="closeDemBtn">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- AJOUT MANUEL MODAL -->
+<div class="ov hidden" id="manOv">
+  <div class="modal man-modal">
+    <div class="mhdr">
+      <div>
+        <div class="mhdr-sub">make_urnails.up</div>
+        <div class="mtit">Nouveau rendez-vous</div>
+      </div>
+      <button class="mclose" id="closeMan">✕</button>
+    </div>
+    <div class="mbdy">
+
+      <!-- Cliente -->
+      <div class="fsec">
+        <div class="fsec-title">👤 Cliente</div>
+        <div class="frow">
+          <div class="fg">
+            <label class="fl">Prénom *</label>
+            <input class="fi" id="mPrenom" placeholder="Ex: Marie" autocomplete="off">
+          </div>
+          <div class="fg">
+            <label class="fl">Nom *</label>
+            <input class="fi" id="mNom" placeholder="Ex: Dupont" autocomplete="off">
+          </div>
+        </div>
+        <div class="frow">
+          <div class="fg">
+            <label class="fl">Email *</label>
+            <input class="fi" type="email" id="mEmail" placeholder="Ex: marie@email.com">
+          </div>
+          <div class="fg">
+            <label class="fl">Téléphone <span class="opt-tag">optionnel</span></label>
+            <input class="fi" type="tel" id="mTel" placeholder="Ex: 06 12 34 56 78">
+          </div>
+        </div>
+        <div class="fg" style="max-width:48%">
+          <label class="fl">Âge *</label>
+          <input class="fi" type="number" id="mAge" placeholder="Ex: 25" min="18" max="99">
+        </div>
+      </div>
+
+      <!-- Date & Créneau -->
+      <div class="fsec">
+        <div class="fsec-title">📅 Date &amp; créneau</div>
+        <div class="fg">
+          <label class="fl">Date *</label>
+          <input class="fi" type="date" id="mDate">
+        </div>
+        <div id="slotsLoading" class="slots-msg hidden">⏳ Chargement des créneaux…</div>
+        <div id="slotsEmpty"   class="slots-msg hidden">🚫 Aucun créneau disponible ce jour.</div>
+        <div class="fg hidden" id="slotsSection">
+          <label class="fl">Créneau disponible *</label>
+          <div class="slots-grid" id="slotsGrid"></div>
+        </div>
+      </div>
+
+      <!-- Prestation -->
+      <div class="fsec">
+        <div class="fsec-title">💅 Prestation *</div>
+        <div class="fg">
+          <select class="fi" id="mPrestation">
+            <option value="">— Choisir une prestation —</option>
+            <option>Pose simple</option>
+            <option>Nail art</option>
+            <option>Freestyle chargée</option>
+            <option>Pédicure</option>
+            <option>Dépose</option>
+            <option>Remplissage</option>
+            <option>Dépose extérieure</option>
+            <option>Réparation</option>
+          </select>
+        </div>
+
+        <!-- Taille des ongles (conditionnel) -->
+        <div class="fg hidden" id="tailleSection">
+          <label class="fl" style="margin-top:8px">Taille des ongles *</label>
+          <div class="taille-grid">
+            <button type="button" class="taille-opt" data-v="Court">Court</button>
+            <button type="button" class="taille-opt" data-v="Moyen">Moyen</button>
+            <button type="button" class="taille-opt" data-v="Long">Long</button>
+          </div>
+        </div>
+
+        <label class="bijoux-label" style="margin-top:12px">
+          <input type="checkbox" id="mBijoux" class="bijoux-cb">
+          <span>💎 Bijoux</span>
+        </label>
+      </div>
+
+      <!-- Remarque -->
+      <div class="fsec mb-0">
+        <div class="fsec-title">📝 Remarque <span class="opt-tag">optionnel</span></div>
+        <div class="fg">
+          <input class="fi" id="mNotes" placeholder="Ex: motifs floraux, allergie acrylique…">
+        </div>
+      </div>
+
+      <div class="ferr" id="manErr">Veuillez remplir tous les champs obligatoires.</div>
+    </div>
+    <div class="mft">
+      <button class="btn bn" id="cancelManBtn">Annuler</button>
+      <button class="btn bp" id="saveManBtn">💾 Enregistrer</button>
     </div>
   </div>
 </div>
