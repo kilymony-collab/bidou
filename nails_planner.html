@@ -131,8 +131,8 @@
         </div>
         <div id="slotsLoading" class="slots-msg hidden">⏳ Chargement des créneaux…</div>
         <div id="slotsEmpty"   class="slots-msg hidden">🚫 Aucun créneau disponible ce jour.</div>
-        <div class="fg hidden" id="slotsSection">
-          <label class="fl">Créneau disponible *</label>
+        <div class="hidden" id="slotsSection">
+          <div class="slots-day-hdr" id="slotsDayHdr"></div>
           <div class="slots-grid" id="slotsGrid"></div>
         </div>
       </div>
@@ -140,23 +140,20 @@
       <!-- Prestation -->
       <div class="fsec">
         <div class="fsec-title">💅 Prestation *</div>
-        <div class="fg">
-          <select class="fi" id="mPrestation">
-            <option value="">— Choisir une prestation —</option>
-            <option>Pose simple</option>
-            <option>Nail art</option>
-            <option>Freestyle chargée</option>
-            <option>Pédicure</option>
-            <option>Dépose</option>
-            <option>Remplissage</option>
-            <option>Dépose extérieure</option>
-            <option>Réparation</option>
-          </select>
+        <div class="pgrid" id="mPrestGrid">
+          <button type="button" class="popt" data-v="Pose simple">Pose simple</button>
+          <button type="button" class="popt" data-v="Nail art">Nail art</button>
+          <button type="button" class="popt" data-v="Freestyle chargée">Freestyle chargée</button>
+          <button type="button" class="popt" data-v="Pédicure">Pédicure</button>
+          <button type="button" class="popt" data-v="Dépose">Dépose</button>
+          <button type="button" class="popt" data-v="Remplissage">Remplissage</button>
+          <button type="button" class="popt" data-v="Dépose extérieure">Dépose extérieure</button>
+          <button type="button" class="popt" data-v="Réparation">Réparation</button>
         </div>
 
         <!-- Taille des ongles (conditionnel) -->
-        <div class="fg hidden" id="tailleSection">
-          <label class="fl" style="margin-top:8px">Taille des ongles *</label>
+        <div class="hidden" id="tailleSection" style="margin-top:10px">
+          <label class="fl">Taille des ongles *</label>
           <div class="taille-grid">
             <button type="button" class="taille-opt" data-v="Court">Court</button>
             <button type="button" class="taille-opt" data-v="Moyen">Moyen</button>

@@ -571,29 +571,32 @@ document.addEventListener('keydown', e => {
 
 const PRESTS_TAILLE = ['Pose simple', 'Nail art', 'Freestyle chargée'];
 
-let selectedSlot    = null;   // ISO string of the chosen Cal.com slot
-let selectedTaille  = null;   // 'Court' | 'Moyen' | 'Long'
+let selectedSlot        = null;   // ISO string of the chosen Cal.com slot
+let selectedTaille      = null;   // 'Court' | 'Moyen' | 'Long'
+let selectedPrestation  = null;   // selected prestation string
 
 function openManualForm() {
   // Reset all fields
   ['mPrenom','mNom','mEmail','mTel','mNotes'].forEach(id => { document.getElementById(id).value = ''; });
-  document.getElementById('mAge').value        = '';
-  document.getElementById('mDate').value       = '';
-  document.getElementById('mPrestation').value = '';
-  document.getElementById('mBijoux').checked   = false;
+  document.getElementById('mAge').value  = '';
+  document.getElementById('mDate').value = '';
+  document.getElementById('mBijoux').checked = false;
   document.getElementById('manErr').style.display = 'none';
 
-  selectedSlot   = null;
-  selectedTaille = null;
+  selectedSlot        = null;
+  selectedTaille      = null;
+  selectedPrestation  = null;
 
   // Hide dynamic sections
   document.getElementById('slotsSection').classList.add('hidden');
   document.getElementById('slotsLoading').classList.add('hidden');
   document.getElementById('slotsEmpty').classList.add('hidden');
   document.getElementById('tailleSection').classList.add('hidden');
-  document.getElementById('slotsGrid').innerHTML = '';
+  document.getElementById('slotsGrid').innerHTML    = '';
+  document.getElementById('slotsDayHdr').textContent = '';
 
-  // Reset taille buttons
+  // Reset prestation + taille buttons
+  document.querySelectorAll('.popt').forEach(b => b.classList.remove('on'));
   document.querySelectorAll('.taille-opt').forEach(b => b.classList.remove('on'));
 
   // Set min date to today
@@ -635,6 +638,8 @@ document.getElementById('mDate').addEventListener('change', async function () {
       return;
     }
 
+    document.getElementById('slotsDayHdr').textContent = formatFullDate(date);
+
     slotsGrid.innerHTML = slots.map(s => {
       const d     = new Date(s.start);
       const label = d.toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' });
@@ -657,15 +662,19 @@ document.getElementById('mDate').addEventListener('change', async function () {
   }
 });
 
-// Show/hide taille des ongles based on prestation
-document.getElementById('mPrestation').addEventListener('change', function () {
-  const p = this.value;
-  const showTaille = PRESTS_TAILLE.includes(p);
-  document.getElementById('tailleSection').classList.toggle('hidden', !showTaille);
-  if (!showTaille) {
-    selectedTaille = null;
-    document.querySelectorAll('.taille-opt').forEach(b => b.classList.remove('on'));
-  }
+// Prestation grid buttons
+document.querySelectorAll('.popt').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.popt').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    selectedPrestation = btn.dataset.v;
+    const showTaille = PRESTS_TAILLE.includes(selectedPrestation);
+    document.getElementById('tailleSection').classList.toggle('hidden', !showTaille);
+    if (!showTaille) {
+      selectedTaille = null;
+      document.querySelectorAll('.taille-opt').forEach(b => b.classList.remove('on'));
+    }
+  });
 });
 
 // Taille buttons
@@ -679,15 +688,15 @@ document.querySelectorAll('.taille-opt').forEach(btn => {
 
 // Save manual booking
 document.getElementById('saveManBtn').addEventListener('click', async () => {
-  const prenom     = document.getElementById('mPrenom').value.trim();
-  const nom        = document.getElementById('mNom').value.trim();
-  const email      = document.getElementById('mEmail').value.trim();
-  const telephone  = document.getElementById('mTel').value.trim();
-  const age        = document.getElementById('mAge').value.trim();
-  const prestation = document.getElementById('mPrestation').value;
-  const bijoux     = document.getElementById('mBijoux').checked;
-  const notes      = document.getElementById('mNotes').value.trim();
-  const errEl      = document.getElementById('manErr');
+  const prenom    = document.getElementById('mPrenom').value.trim();
+  const nom       = document.getElementById('mNom').value.trim();
+  const email     = document.getElementById('mEmail').value.trim();
+  const telephone = document.getElementById('mTel').value.trim();
+  const age       = document.getElementById('mAge').value.trim();
+  const prestation = selectedPrestation;
+  const bijoux    = document.getElementById('mBijoux').checked;
+  const notes     = document.getElementById('mNotes').value.trim();
+  const errEl     = document.getElementById('manErr');
 
   // Validation
   const needTaille = PRESTS_TAILLE.includes(prestation);
