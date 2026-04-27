@@ -78,6 +78,7 @@ function mapRecord(record) {
     remarque:           f.notes_client       || '',
     booking_uid_calcom: f.booking_uid_calcom || '',
     email_client:       f.email_client       || '',
+    telephone_client:   f.telephone_client   || '',
     statut_interne:     f.statut_interne     || '',
     taille_ongles:      f.taille_ongles      || '',
     photo_modele_url:   f.photo_modele_url   || '',
@@ -377,8 +378,8 @@ function openDetail(id) {
     body += `<div class="dr"><span class="dic">📏</span><div><div class="dlb">Taille des ongles</div><div class="dv">${escHtml(a.taille_ongles)}</div></div></div>`;
   if (a.age_client)
     body += `<div class="dr"><span class="dic">🎂</span><div><div class="dlb">Âge</div><div class="dv">${escHtml(a.age_client)} ans</div></div></div>`;
-  if (a.email_client)
-    body += `<div class="dr"><span class="dic">📧</span><div><div class="dlb">Email</div><div class="dv">${escHtml(a.email_client)}</div></div></div>`;
+  if (a.telephone_client)
+    body += `<div class="dr"><span class="dic">📱</span><div><div class="dlb">Téléphone</div><div class="dv">${escHtml(a.telephone_client)}</div></div></div>`;
   if (a.remarque)
     body += `<div class="dr"><span class="dic">📝</span><div><div class="dlb">Remarque</div><div class="dv">${escHtml(a.remarque)}</div></div></div>`;
   if (a.photo_modele_url)
@@ -469,7 +470,15 @@ async function acceptRequest(id) {
     const res = await fetch('/api/rdv', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ booking_uid: req.booking_uid_calcom, action: 'accept' }),
+      body:    JSON.stringify({
+        booking_uid:        req.booking_uid_calcom,
+        action:             'accept',
+        airtable_record_id: req.id,
+        telephone_client:   req.telephone_client,
+        nom_client:         req.prenom + ' ' + req.nom,
+        date_rdv:           req.date,
+        heure_rdv:          req.heure,
+      }),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     await loadData();
@@ -506,7 +515,13 @@ async function refuseRequest(id) {
     const res = await fetch('/api/rdv', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ booking_uid: req.booking_uid_calcom, action: 'refuse' }),
+      body:    JSON.stringify({
+        booking_uid:        req.booking_uid_calcom,
+        action:             'refuse',
+        airtable_record_id: req.id,
+        telephone_client:   req.telephone_client,
+        nom_client:         req.prenom + ' ' + req.nom,
+      }),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     await loadData();
@@ -734,7 +749,7 @@ document.getElementById('saveManBtn').addEventListener('click', async () => {
   // Validation
   const needTaille = [...selectedPrestations].some(p => PRESTS_TAILLE.includes(p));
   let errMsg = '';
-  if (!prenom || !nom || !email)           errMsg = 'Prénom, nom et email sont obligatoires.';
+  if (!prenom || !nom || !telephone)       errMsg = 'Prénom, nom et téléphone sont obligatoires.';
   else if (!age || Number(age) < 18)       errMsg = 'Âge obligatoire (18 ans minimum).';
   else if (!selectedSlot)                  errMsg = 'Veuillez choisir un créneau.';
   else if (selectedPrestations.size === 0) errMsg = 'Veuillez choisir au moins une prestation.';

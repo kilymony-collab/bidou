@@ -49,8 +49,8 @@ export default async function handler(req, res) {
       slotStart,
     } = req.body;
 
-    if (!slotStart || !prenom || !nom || !email || !prestation) {
-      return res.status(400).json({ error: 'Champs obligatoires manquants (prénom, nom, email, prestation, créneau).' });
+    if (!slotStart || !prenom || !nom || !telephone || !prestation) {
+      return res.status(400).json({ error: 'Champs obligatoires manquants (prénom, nom, téléphone, prestation, créneau).' });
     }
     if (!calKey || !atKey || !baseId) {
       return res.status(500).json({ error: 'Variables d\'environnement manquantes.' });
