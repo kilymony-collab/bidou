@@ -1197,7 +1197,7 @@ aside {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: #3aaa35;
+  background: var(--pk2);
   flex-shrink: 0;
 }
 
