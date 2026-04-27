@@ -1,21 +1,15 @@
 const DAYS   = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const MONTHS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 const HOURS  = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
-const PRESTS = ['Manucure', 'Pédicure', 'Dépose', 'Remplissage'];
 
-let appointments       = [];
-let view               = 'month';
-let activeId           = null;
-let deleteConfirmed    = false;
-let selectedPrestations = [];
-let cur                = new Date();
-let selectedDate       = todayDateString();
+let appointments    = [];
+let view            = 'month';
+let activeId        = null;
+let deleteConfirmed = false;
+let cur             = new Date();
+let selectedDate    = todayDateString();
 
 // ── Utilities ──────────────────────────────────────────────────────────────
-
-function generateId() {
-  return Math.random().toString(36).slice(2, 10);
-}
 
 function pad2(n) {
   return String(n).padStart(2, '0');
@@ -27,12 +21,6 @@ function toDateString(d) {
 
 function todayDateString() {
   return toDateString(new Date());
-}
-
-function addDays(dateString, n) {
-  const d = new Date(dateString + 'T12:00:00');
-  d.setDate(d.getDate() + n);
-  return toDateString(d);
 }
 
 function escHtml(str) {
@@ -61,56 +49,111 @@ function formatSidebarDate(dateString) {
   return '<span>' + pad2(d.getDate()) + ' ' + MONTHS[d.getMonth()] + '</span> ' + d.getFullYear();
 }
 
-// ── Storage ────────────────────────────────────────────────────────────────
+// ── Data layer ─────────────────────────────────────────────────────────────
+
+function mapRecord(record) {
+  const f          = record.fields;
+  const nomComplet = (f.nom_client || '').trim();
+  const spaceIdx   = nomComplet.indexOf(' ');
+  const prenom     = spaceIdx >= 0 ? nomComplet.slice(0, spaceIdx) : nomComplet;
+  const nom        = spaceIdx >= 0 ? nomComplet.slice(spaceIdx + 1) : '';
+  return {
+    id:                 record.id,
+    prenom,
+    nom,
+    date:               f.date_rdv            || '',
+    heure:              f.heure_rdv            || '',
+    prestations:        f.prestation           ? [f.prestation] : [],
+    bijoux:             !!f.bijoux,
+    remarque:           f.notes_client         || '',
+    airtable_record_id: record.id,
+    booking_uid_calcom: f.booking_uid_calcom   || '',
+    email_client:       f.email_client         || '',
+    statut_interne:     f.statut_interne        || '',
+    taille_ongles:      f.taille_ongles         || '',
+    photo_modele_url:   f.photo_modele_url      || '',
+    photo_ongles_url:   f.photo_ongles_url      || '',
+    age_client:         f.age_client            || '',
+  };
+}
 
 async function loadData() {
   try {
-    const result = await window.storage.get('nails_v5');
-    if (result && result.value) {
-      appointments = JSON.parse(result.value);
-    } else {
-      const today = todayDateString();
-      appointments = [
-        { id: generateId(), prenom: 'Marie',  nom: 'Dupont',   date: today,             heure: '09:30', prestations: ['Manucure'],             bijoux: false, remarque: 'Cliente fidèle depuis 2 ans' },
-        { id: generateId(), prenom: 'Sophie', nom: 'Martin',   date: today,             heure: '14:00', prestations: ['Remplissage'],           bijoux: false, remarque: '' },
-        { id: generateId(), prenom: 'Lucie',  nom: 'Bernard',  date: addDays(today, 1), heure: '11:00', prestations: ['Manucure', 'Pédicure'],  bijoux: true,  remarque: 'Motifs floraux' },
-        { id: generateId(), prenom: 'Emma',   nom: 'Petit',    date: addDays(today, 2), heure: '10:30', prestations: ['Dépose'],                bijoux: false, remarque: '' },
-        { id: generateId(), prenom: 'Chloé',  nom: 'Rousseau', date: addDays(today, 3), heure: '15:30', prestations: ['Manucure'],              bijoux: false, remarque: 'Vernis nude' },
-      ];
-      await saveData();
-    }
+    const res = await fetch('/api/rdv');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    appointments = (data.records || []).map(mapRecord);
   } catch (e) {
     appointments = [];
+    console.error('loadData:', e);
+    toast('Erreur de chargement', e.message);
   }
-  initPrestationGrid();
   render();
   renderSidebar();
 }
 
-async function saveData() {
-  try { await window.storage.set('nails_v5', JSON.stringify(appointments)); } catch (e) {}
+// ── Accept / Refuse ────────────────────────────────────────────────────────
+
+async function acceptRdv() {
+  const a = appointments.find(x => x.id === activeId);
+  if (!a) return;
+  const btn     = document.getElementById('editBtn');
+  btn.disabled  = true;
+  btn.textContent = '⏳ En cours…';
+  try {
+    const res = await fetch('/api/rdv', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action:             'accept',
+        booking_uid:        a.booking_uid_calcom,
+        airtable_record_id: a.airtable_record_id,
+        email_client:       a.email_client,
+        nom_client:         a.prenom + ' ' + a.nom,
+        date_rdv:           a.date,
+        heure_rdv:          a.heure,
+      }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    closeDetail();
+    toast('✅ RDV accepté', a.prenom + ' ' + a.nom + ' — confirmation envoyée.');
+    await loadData();
+  } catch (e) {
+    toast('Erreur', 'Action échouée : ' + e.message);
+    btn.disabled    = false;
+    btn.textContent = '✅ Accepter';
+  }
 }
 
-// ── Prestation grid ────────────────────────────────────────────────────────
-
-function initPrestationGrid() {
-  document.getElementById('pgrid').innerHTML = PRESTS.map(p =>
-    `<div class="popt" data-p="${escHtml(p)}">${escHtml(p)}</div>`
-  ).join('');
-  document.querySelectorAll('.popt').forEach(el => {
-    el.addEventListener('click', () => pickPrestation(el));
-  });
-}
-
-function pickPrestation(el) {
-  const p     = el.dataset.p;
-  const index = selectedPrestations.indexOf(p);
-  if (index >= 0) {
-    selectedPrestations.splice(index, 1);
-    el.classList.remove('on');
-  } else {
-    selectedPrestations.push(p);
-    el.classList.add('on');
+async function refuseRdv() {
+  const a = appointments.find(x => x.id === activeId);
+  if (!a) return;
+  const btn     = document.getElementById('delBtn');
+  btn.disabled  = true;
+  btn.textContent = '⏳ En cours…';
+  try {
+    const res = await fetch('/api/rdv', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action:             'refuse',
+        booking_uid:        a.booking_uid_calcom,
+        airtable_record_id: a.airtable_record_id,
+        email_client:       a.email_client,
+        nom_client:         a.prenom + ' ' + a.nom,
+        date_rdv:           a.date,
+        heure_rdv:          a.heure,
+      }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    closeDetail();
+    toast('❌ RDV refusé', a.prenom + ' ' + a.nom + ' — refus envoyé.');
+    await loadData();
+  } catch (e) {
+    toast('Erreur', 'Action échouée : ' + e.message);
+    btn.disabled      = false;
+    btn.textContent   = '❌ Refuser';
+    deleteConfirmed   = false;
   }
 }
 
@@ -139,27 +182,51 @@ function render() {
 function renderSidebar() {
   document.getElementById('sbDate').innerHTML = formatSidebarDate(selectedDate);
 
-  const dayAppointments = appointments
-    .filter(a => a.date === selectedDate)
+  // Pending — shown regardless of selected date
+  const pending = appointments
+    .filter(a => a.statut_interne === 'en_attente_validation')
+    .sort((a, b) => a.date.localeCompare(b.date) || a.heure.localeCompare(b.heure));
+
+  // Confirmed for the selected day
+  const dayAccepted = appointments
+    .filter(a => a.date === selectedDate && a.statut_interne === 'accepte')
     .sort((a, b) => a.heure.localeCompare(b.heure));
 
   const listEl = document.getElementById('sbList');
-  if (!dayAppointments.length) {
-    listEl.innerHTML = '<div class="empty-st"><div class="empty-ico">🌸</div>Aucun rendez-vous<br>ce jour-là.</div>';
-    return;
+  let html = '';
+
+  if (pending.length > 0) {
+    html += `<div class="sb-sec-lbl">⏳ En attente (${pending.length})</div>`;
+    html += pending.map(a =>
+      `<div class="rdv-card rdv-pending" data-id="${escHtml(a.id)}">` +
+        `<div class="rdv-badge rdv-badge-wait">${escHtml(a.heure)}</div>` +
+        `<div class="rdv-info">` +
+          `<div class="rdv-nm">${escHtml(a.prenom)} ${escHtml(a.nom)}</div>` +
+          `<div class="rdv-pr">${escHtml(formatPrestations(a))}</div>` +
+          `<div class="rdv-dt">${escHtml(formatFullDate(a.date))}</div>` +
+        `</div>` +
+        `<div class="rdv-ch">›</div>` +
+      `</div>`
+    ).join('');
+    if (dayAccepted.length > 0) html += '<div class="sb-sep"></div>';
   }
 
-  listEl.innerHTML = dayAppointments.map(a =>
-    `<div class="rdv-card" data-id="${escHtml(a.id)}">` +
-      `<div class="rdv-badge">${escHtml(a.heure)}</div>` +
-      `<div class="rdv-info">` +
-        `<div class="rdv-nm">${escHtml(a.prenom)} ${escHtml(a.nom)}</div>` +
-        `<div class="rdv-pr">${escHtml(formatPrestations(a))}</div>` +
-      `</div>` +
-      `<div class="rdv-ch">›</div>` +
-    `</div>`
-  ).join('');
+  if (dayAccepted.length > 0) {
+    html += dayAccepted.map(a =>
+      `<div class="rdv-card" data-id="${escHtml(a.id)}">` +
+        `<div class="rdv-badge">${escHtml(a.heure)}</div>` +
+        `<div class="rdv-info">` +
+          `<div class="rdv-nm">${escHtml(a.prenom)} ${escHtml(a.nom)}</div>` +
+          `<div class="rdv-pr">${escHtml(formatPrestations(a))}</div>` +
+        `</div>` +
+        `<div class="rdv-ch">›</div>` +
+      `</div>`
+    ).join('');
+  } else if (pending.length === 0) {
+    html = '<div class="empty-st"><div class="empty-ico">🌸</div>Aucun rendez-vous<br>ce jour-là.</div>';
+  }
 
+  listEl.innerHTML = html;
   listEl.querySelectorAll('.rdv-card').forEach(card => {
     card.addEventListener('click', () => openDetail(card.dataset.id));
   });
@@ -172,11 +239,12 @@ function renderMonth() {
   const m = cur.getMonth();
   document.getElementById('period').textContent = MONTHS[m] + ' ' + y;
 
-  const firstDay       = new Date(y, m, 1);
-  const startOffset    = (firstDay.getDay() + 6) % 7;
-  const daysInMonth    = new Date(y, m + 1, 0).getDate();
+  const firstDay        = new Date(y, m, 1);
+  const startOffset     = (firstDay.getDay() + 6) % 7;
+  const daysInMonth     = new Date(y, m + 1, 0).getDate();
   const daysInPrevMonth = new Date(y, m, 0).getDate();
-  const today          = todayDateString();
+  const today           = todayDateString();
+  const accepted        = appointments.filter(a => a.statut_interne === 'accepte');
 
   let html = '<div class="mgrid"><div class="mrow-h">' +
     DAYS.map(d => `<div class="mhc">${d}</div>`).join('') +
@@ -189,18 +257,15 @@ function renderMonth() {
   for (let d = 1; d <= daysInMonth; d++) {
     const ds  = y + '-' + pad2(m + 1) + '-' + pad2(d);
     const cls = 'mc' + (ds === today ? ' tod' : '') + (ds === selectedDate ? ' sel' : '');
-    const dayAppointments = appointments
-      .filter(a => a.date === ds)
-      .sort((a, b) => a.heure.localeCompare(b.heure));
-    const visible = dayAppointments.slice(0, 2);
-    const extra   = dayAppointments.length - 2;
+    const dayRdv  = accepted.filter(a => a.date === ds).sort((a, b) => a.heure.localeCompare(b.heure));
+    const visible = dayRdv.slice(0, 2);
+    const extra   = dayRdv.length - 2;
 
     html += `<div class="${cls}" data-ds="${ds}"><div class="dn">${d}</div>`;
     visible.forEach(a => {
       html += `<div class="pill" data-id="${escHtml(a.id)}">` +
         `<span class="pt">${escHtml(a.heure)}</span>` +
-        `<span class="pn">${escHtml(a.prenom)}</span>` +
-        `</div>`;
+        `<span class="pn">${escHtml(a.prenom)}</span></div>`;
     });
     if (extra > 0) html += `<div class="mmore">+${extra} autre${extra > 1 ? 's' : ''}</div>`;
     html += '</div>';
@@ -234,9 +299,10 @@ function renderWeek() {
     return x;
   });
 
-  const today = todayDateString();
-  const first = weekDays[0];
-  const last  = weekDays[6];
+  const today   = todayDateString();
+  const first   = weekDays[0];
+  const last    = weekDays[6];
+  const accepted = appointments.filter(a => a.statut_interne === 'accepte');
 
   document.getElementById('period').textContent =
     pad2(first.getDate()) + '/' + pad2(first.getMonth() + 1) +
@@ -245,13 +311,11 @@ function renderWeek() {
 
   let html = '<div class="wc"><div class="whead"><div class="we"></div>';
   weekDays.forEach(x => {
-    const ds         = toDateString(x);
-    const isToday    = ds === today;
-    const isSelected = ds === selectedDate;
-    html +=
-      `<div class="whd${isSelected ? ' wsel' : ''}" data-ds="${ds}">` +
-        `<div class="wdn">${DAYS[(x.getDay() + 6) % 7]}</div>` +
-        `<div class="wnum${isToday ? ' wt' : ''}">${x.getDate()}</div>` +
+    const ds  = toDateString(x);
+    const sel = ds === selectedDate;
+    html += `<div class="whd${sel ? ' wsel' : ''}" data-ds="${ds}">` +
+      `<div class="wdn">${DAYS[(x.getDay() + 6) % 7]}</div>` +
+      `<div class="wnum${ds === today ? ' wt' : ''}">${x.getDate()}</div>` +
       `</div>`;
   });
 
@@ -260,18 +324,17 @@ function renderWeek() {
   html += '</div>';
 
   weekDays.forEach(x => {
-    const ds = toDateString(x);
-    const dayAppointments = appointments.filter(a => a.date === ds);
+    const ds     = toDateString(x);
+    const dayRdv = accepted.filter(a => a.date === ds);
     html += '<div class="wdc">';
     HOURS.forEach(() => { html += '<div class="wsl"></div>'; });
-    dayAppointments.forEach(a => {
-      const [hh, mm]      = a.heure.split(':').map(Number);
-      const minutesFrom8  = (hh - 8) * 60 + mm;
+    dayRdv.forEach(a => {
+      const [hh, mm]     = a.heure.split(':').map(Number);
+      const minutesFrom8 = (hh - 8) * 60 + mm;
       if (minutesFrom8 < 0 || minutesFrom8 >= 13 * 60) return;
-      html +=
-        `<div class="wapt" style="top:${minutesFrom8 / 60 * 60}px" data-id="${escHtml(a.id)}">` +
-          `<div class="wat">${escHtml(a.heure)}</div>` +
-          `<div class="wan">${escHtml(a.prenom)}</div>` +
+      html += `<div class="wapt" style="top:${minutesFrom8 / 60 * 60}px" data-id="${escHtml(a.id)}">` +
+        `<div class="wat">${escHtml(a.heure)}</div>` +
+        `<div class="wan">${escHtml(a.prenom)}</div>` +
         `</div>`;
     });
     html += '</div>';
@@ -295,19 +358,74 @@ function openDetail(id) {
   if (!a) return;
   activeId        = id;
   deleteConfirmed = false;
-  resetDeleteButton();
 
   if (selectedDate !== a.date) { selectedDate = a.date; renderSidebar(); }
 
   document.getElementById('dtit').textContent = a.prenom + ' ' + a.nom;
-  document.getElementById('dbdy').innerHTML =
-    `<div class="dr"><span class="dic">👤</span><div><div class="dlb">Cliente</div><div class="dv">${escHtml(a.prenom)} ${escHtml(a.nom)}</div></div></div>` +
-    `<div class="dr"><span class="dic">📅</span><div><div class="dlb">Date</div><div class="dv">${escHtml(formatFullDate(a.date))}</div></div></div>` +
-    `<div class="dr"><span class="dic">🕐</span><div><div class="dlb">Heure</div><div class="dv">${escHtml(a.heure)}</div></div></div>` +
-    `<div class="dr"><span class="dic">💅</span><div><div class="dlb">Prestation</div><div class="dv">${escHtml(formatPrestations(a))}</div></div></div>` +
-    (a.remarque
-      ? `<div class="dr"><span class="dic">📝</span><div><div class="dlb">Remarque</div><div class="dv">${escHtml(a.remarque)}</div></div></div>`
-      : '');
+
+  let body =
+    `<div class="dr"><span class="dic">👤</span><div><div class="dlb">Cliente</div>` +
+    `<div class="dv">${escHtml(a.prenom)} ${escHtml(a.nom)}</div></div></div>`;
+
+  if (a.email_client) {
+    body += `<div class="dr"><span class="dic">📧</span><div><div class="dlb">Email</div>` +
+      `<div class="dv">${escHtml(a.email_client)}</div></div></div>`;
+  }
+  if (a.age_client) {
+    body += `<div class="dr"><span class="dic">🎂</span><div><div class="dlb">Âge</div>` +
+      `<div class="dv">${escHtml(a.age_client)} ans</div></div></div>`;
+  }
+  body +=
+    `<div class="dr"><span class="dic">📅</span><div><div class="dlb">Date</div>` +
+    `<div class="dv">${escHtml(formatFullDate(a.date))}</div></div></div>` +
+    `<div class="dr"><span class="dic">🕐</span><div><div class="dlb">Heure</div>` +
+    `<div class="dv">${escHtml(a.heure)}</div></div></div>` +
+    `<div class="dr"><span class="dic">💅</span><div><div class="dlb">Prestation</div>` +
+    `<div class="dv">${escHtml(formatPrestations(a))}</div></div></div>`;
+
+  if (a.taille_ongles) {
+    body += `<div class="dr"><span class="dic">📏</span><div><div class="dlb">Taille des ongles</div>` +
+      `<div class="dv">${escHtml(a.taille_ongles)}</div></div></div>`;
+  }
+  if (a.photo_modele_url) {
+    body += `<div class="dr"><span class="dic">🖼️</span><div><div class="dlb">Photo modèle</div>` +
+      `<div class="dv"><a href="${escHtml(a.photo_modele_url)}" target="_blank" rel="noopener" style="color:var(--pk2)">Voir le fichier ↗</a></div></div></div>`;
+  }
+  if (a.photo_ongles_url) {
+    body += `<div class="dr"><span class="dic">📸</span><div><div class="dlb">Photo ongles naturels</div>` +
+      `<div class="dv"><a href="${escHtml(a.photo_ongles_url)}" target="_blank" rel="noopener" style="color:var(--pk2)">Voir le fichier ↗</a></div></div></div>`;
+  }
+  if (a.remarque) {
+    body += `<div class="dr"><span class="dic">📝</span><div><div class="dlb">Remarque</div>` +
+      `<div class="dv">${escHtml(a.remarque)}</div></div></div>`;
+  }
+
+  document.getElementById('dbdy').innerHTML = body;
+
+  // Configure footer buttons based on status
+  const delBtn  = document.getElementById('delBtn');
+  const editBtn = document.getElementById('editBtn');
+
+  if (a.statut_interne === 'en_attente_validation') {
+    delBtn.textContent    = '❌ Refuser';
+    delBtn.className      = 'btn bdd';
+    delBtn.disabled       = false;
+    delBtn.style.display  = '';
+    editBtn.textContent   = '✅ Accepter';
+    editBtn.className     = 'btn bp';
+    editBtn.disabled      = false;
+    editBtn.style.display = '';
+  } else if (a.statut_interne === 'accepte') {
+    delBtn.textContent    = '❌ Refuser';
+    delBtn.className      = 'btn bdd';
+    delBtn.disabled       = false;
+    delBtn.style.display  = '';
+    editBtn.style.display = 'none';
+  } else {
+    // en_attente_formulaire or other — read-only
+    delBtn.style.display  = 'none';
+    editBtn.style.display = 'none';
+  }
 
   document.getElementById('dov').classList.remove('hidden');
 }
@@ -315,100 +433,42 @@ function openDetail(id) {
 function closeDetail() {
   activeId        = null;
   deleteConfirmed = false;
-  resetDeleteButton();
+  // Reset buttons to defaults
+  const delBtn  = document.getElementById('delBtn');
+  delBtn.textContent    = '❌ Refuser';
+  delBtn.className      = 'btn bdd';
+  delBtn.disabled       = false;
+  delBtn.style.display  = '';
+  const editBtn = document.getElementById('editBtn');
+  editBtn.textContent   = '✅ Accepter';
+  editBtn.className     = 'btn bp';
+  editBtn.disabled      = false;
+  editBtn.style.display = '';
   document.getElementById('dov').classList.add('hidden');
 }
 
-function resetDeleteButton() {
-  const btn = document.getElementById('delBtn');
-  btn.textContent = '🗑 Supprimer';
-  btn.className   = 'btn bdd';
-}
-
+// Two-click confirmation before refusing
 function askDelete() {
   if (!deleteConfirmed) {
-    deleteConfirmed     = true;
-    const btn           = document.getElementById('delBtn');
-    btn.textContent     = '⚠️ Confirmer ?';
-    btn.className       = 'btn bd2';
+    deleteConfirmed           = true;
+    const btn                 = document.getElementById('delBtn');
+    btn.textContent           = '⚠️ Confirmer ?';
+    btn.className             = 'btn bd2';
     return;
   }
-  deleteAppointment();
+  refuseRdv();
 }
 
-async function deleteAppointment() {
-  if (!activeId) return;
-  appointments = appointments.filter(x => x.id !== activeId);
-  await saveData();
-  closeDetail();
-  render();
-  renderSidebar();
-  toast('RDV supprimé', 'Le rendez-vous a été supprimé.');
-}
-
-function editAppointment() {
+function handleEditBtn() {
   const a = appointments.find(x => x.id === activeId);
   if (!a) return;
-  closeDetail();
-  openForm(a);
+  if (a.statut_interne === 'en_attente_validation') acceptRdv();
 }
 
-// ── Form modal ─────────────────────────────────────────────────────────────
-
-function openForm(a) {
-  document.getElementById('ftit').textContent   = a ? 'Modifier le rendez-vous' : 'Nouveau rendez-vous';
-  document.getElementById('fp').value           = a ? a.prenom   : '';
-  document.getElementById('fn').value           = a ? a.nom      : '';
-  document.getElementById('fd').value           = a ? a.date     : todayDateString();
-  document.getElementById('fh').value           = a ? a.heure    : '09:00';
-  document.getElementById('fr').value           = a ? a.remarque : '';
-  document.getElementById('ferr').style.display = 'none';
-  selectedPrestations = a ? [...(a.prestations || [])] : [];
-  document.querySelectorAll('.popt').forEach(el => {
-    el.classList.toggle('on', selectedPrestations.includes(el.dataset.p));
-  });
-  document.getElementById('fBijoux').checked = a ? !!a.bijoux : false;
-  activeId = a ? a.id : null;
-  document.getElementById('fov').classList.remove('hidden');
-  setTimeout(() => document.getElementById('fp').focus(), 80);
-}
+// ── Form modal stubs (form hidden — appointments come from Cal.com) ─────────
 
 function closeForm() {
   document.getElementById('fov').classList.add('hidden');
-}
-
-async function saveAppointment() {
-  const prenom   = document.getElementById('fp').value.trim();
-  const nom      = document.getElementById('fn').value.trim();
-  const date     = document.getElementById('fd').value;
-  const heure    = document.getElementById('fh').value;
-  const remarque = document.getElementById('fr').value.trim();
-  const errEl    = document.getElementById('ferr');
-
-  const bijoux = document.getElementById('fBijoux').checked;
-
-  if (!prenom || !nom || !date || !heure || selectedPrestations.length === 0) {
-    errEl.style.display = 'block';
-    return;
-  }
-  errEl.style.display = 'none';
-
-  const isEdit = !!activeId;
-  if (isEdit) {
-    const index = appointments.findIndex(x => x.id === activeId);
-    if (index >= 0) {
-      appointments[index] = { id: activeId, prenom, nom, date, heure, prestations: [...selectedPrestations], bijoux, remarque };
-    }
-  } else {
-    appointments.push({ id: generateId(), prenom, nom, date, heure, prestations: [...selectedPrestations], bijoux, remarque });
-  }
-
-  activeId = null;
-  await saveData();
-  closeForm();
-  render();
-  renderSidebar();
-  toast(isEdit ? 'RDV modifié ✓' : 'RDV ajouté ✓', prenom + ' ' + nom + ' — ' + formatPrestations({ prestations: selectedPrestations, bijoux }));
 }
 
 // ── Toast ──────────────────────────────────────────────────────────────────
@@ -429,24 +489,24 @@ document.getElementById('prev').addEventListener('click', () => {
   else cur.setDate(cur.getDate() - 7);
   render();
 });
-
 document.getElementById('next').addEventListener('click', () => {
   if (view === 'month') cur.setMonth(cur.getMonth() + 1);
   else cur.setDate(cur.getDate() + 7);
   render();
 });
-
 document.getElementById('btnM').addEventListener('click', () => setView('month'));
 document.getElementById('btnW').addEventListener('click', () => setView('week'));
-document.getElementById('sbAdd').addEventListener('click', () => openForm(null));
+
+// Hide manual-add button — appointments come from Cal.com
+document.getElementById('sbAdd').style.display = 'none';
 
 document.getElementById('delBtn').addEventListener('click', askDelete);
 document.getElementById('closeDBtn').addEventListener('click', closeDetail);
-document.getElementById('editBtn').addEventListener('click', editAppointment);
+document.getElementById('editBtn').addEventListener('click', handleEditBtn);
 document.getElementById('closeDetail').addEventListener('click', closeDetail);
 
 document.getElementById('cancelBtn').addEventListener('click', closeForm);
-document.getElementById('saveBtn').addEventListener('click', saveAppointment);
+document.getElementById('saveBtn').addEventListener('click', closeForm);
 document.getElementById('closeForm').addEventListener('click', closeForm);
 
 document.getElementById('dov').addEventListener('click', e => { if (e.target.id === 'dov') closeDetail(); });

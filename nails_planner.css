@@ -848,6 +848,41 @@ aside {
 
 .hidden { display: none !important; }
 
+/* PENDING / WAITING STATUS */
+.sb-sec-lbl {
+  font-size: .6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .7px;
+  color: var(--mu);
+  padding: 4px 2px 6px;
+}
+
+.sb-sep {
+  border: none;
+  border-top: 1px solid var(--bd);
+  margin: 6px 0 10px;
+}
+
+.rdv-pending {
+  border-color: var(--pk3);
+}
+
+.rdv-pending:hover {
+  border-color: var(--pk);
+  background: var(--s3);
+}
+
+.rdv-badge-wait {
+  background: linear-gradient(135deg, var(--pk3), var(--pk));
+}
+
+.rdv-dt {
+  font-size: .63rem;
+  color: var(--mu);
+  margin-top: 3px;
+}
+
 /* MOBILE */
 @media (max-width: 768px) {
   body { overflow: auto; height: auto; }
