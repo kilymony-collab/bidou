@@ -2,10 +2,12 @@ const DAYS   = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const MONTHS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 const HOURS  = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
-let appointments    = [];
+let appointments    = [];   // statut_interne === 'accepte'
+let pendingRequests = [];   // en_attente_validation ou en_attente_formulaire
 let view            = 'month';
+let sidebarTab      = 'demandes';
 let activeId        = null;
-let deleteConfirmed = false;
+let refuseConfirmId = null;
 let cur             = new Date();
 let selectedDate    = todayDateString();
 
@@ -33,6 +35,7 @@ function escHtml(str) {
 }
 
 function formatFullDate(dateString) {
+  if (!dateString) return '—';
   const d = new Date(dateString + 'T12:00:00');
   const dayName = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'][d.getDay()];
   return dayName + ' ' + pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear();
@@ -49,112 +52,80 @@ function formatSidebarDate(dateString) {
   return '<span>' + pad2(d.getDate()) + ' ' + MONTHS[d.getMonth()] + '</span> ' + d.getFullYear();
 }
 
-// ── Data layer ─────────────────────────────────────────────────────────────
+// ── Airtable mapping ───────────────────────────────────────────────────────
 
 function mapRecord(record) {
-  const f          = record.fields;
+  const f = record.fields;
   const nomComplet = (f.nom_client || '').trim();
   const spaceIdx   = nomComplet.indexOf(' ');
   const prenom     = spaceIdx >= 0 ? nomComplet.slice(0, spaceIdx) : nomComplet;
   const nom        = spaceIdx >= 0 ? nomComplet.slice(spaceIdx + 1) : '';
+
+  let submittedAt = '—';
+  if (f.date_creation_demande) {
+    const d = new Date(f.date_creation_demande);
+    submittedAt = pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + ' à ' + pad2(d.getHours()) + 'h' + pad2(d.getMinutes());
+  }
+
   return {
     id:                 record.id,
     prenom,
     nom,
-    date:               f.date_rdv            || '',
-    heure:              f.heure_rdv            || '',
-    prestations:        f.prestation           ? [f.prestation] : [],
+    date:               f.date_rdv           || '',
+    heure:              f.heure_rdv          || '',
+    prestations:        f.prestation         ? [f.prestation] : [],
     bijoux:             !!f.bijoux,
-    remarque:           f.notes_client         || '',
-    airtable_record_id: record.id,
-    booking_uid_calcom: f.booking_uid_calcom   || '',
-    email_client:       f.email_client         || '',
-    statut_interne:     f.statut_interne        || '',
-    taille_ongles:      f.taille_ongles         || '',
-    photo_modele_url:   f.photo_modele_url      || '',
-    photo_ongles_url:   f.photo_ongles_url      || '',
-    age_client:         f.age_client            || '',
+    remarque:           f.notes_client       || '',
+    booking_uid_calcom: f.booking_uid_calcom || '',
+    email_client:       f.email_client       || '',
+    statut_interne:     f.statut_interne     || '',
+    taille_ongles:      f.taille_ongles      || '',
+    photo_modele_url:   f.photo_modele_url   || '',
+    photo_ongles_url:   f.photo_ongles_url   || '',
+    age_client:         f.age_client         || '',
+    submittedAt,
   };
 }
+
+// ── Data loading ───────────────────────────────────────────────────────────
 
 async function loadData() {
   try {
     const res = await fetch('/api/rdv');
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    appointments = (data.records || []).map(mapRecord);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'HTTP ' + res.status }));
+      throw new Error(err.error || 'HTTP ' + res.status);
+    }
+    const data    = await res.json();
+    const records = (data.records || []).map(mapRecord);
+
+    appointments    = records.filter(r => r.statut_interne === 'accepte');
+    pendingRequests = records.filter(r =>
+      r.statut_interne === 'en_attente_validation' ||
+      r.statut_interne === 'en_attente_formulaire'
+    );
   } catch (e) {
-    appointments = [];
-    console.error('loadData:', e);
+    appointments    = [];
+    pendingRequests = [];
     toast('Erreur de chargement', e.message);
   }
+
+  updateDemBadge();
   render();
   renderSidebar();
 }
 
-// ── Accept / Refuse ────────────────────────────────────────────────────────
+function updateDemBadge() {
+  const toValidate = pendingRequests.filter(r => r.statut_interne === 'en_attente_validation').length;
+  const total      = pendingRequests.length;
 
-async function acceptRdv() {
-  const a = appointments.find(x => x.id === activeId);
-  if (!a) return;
-  const btn     = document.getElementById('editBtn');
-  btn.disabled  = true;
-  btn.textContent = '⏳ En cours…';
-  try {
-    const res = await fetch('/api/rdv', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action:             'accept',
-        booking_uid:        a.booking_uid_calcom,
-        airtable_record_id: a.airtable_record_id,
-        email_client:       a.email_client,
-        nom_client:         a.prenom + ' ' + a.nom,
-        date_rdv:           a.date,
-        heure_rdv:          a.heure,
-      }),
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    closeDetail();
-    toast('✅ RDV accepté', a.prenom + ' ' + a.nom + ' — confirmation envoyée.');
-    await loadData();
-  } catch (e) {
-    toast('Erreur', 'Action échouée : ' + e.message);
-    btn.disabled    = false;
-    btn.textContent = '✅ Accepter';
-  }
-}
+  const headerBadge = document.getElementById('demBadge');
+  headerBadge.textContent = toValidate;
+  headerBadge.classList.toggle('hidden', toValidate === 0);
 
-async function refuseRdv() {
-  const a = appointments.find(x => x.id === activeId);
-  if (!a) return;
-  const btn     = document.getElementById('delBtn');
-  btn.disabled  = true;
-  btn.textContent = '⏳ En cours…';
-  try {
-    const res = await fetch('/api/rdv', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        action:             'refuse',
-        booking_uid:        a.booking_uid_calcom,
-        airtable_record_id: a.airtable_record_id,
-        email_client:       a.email_client,
-        nom_client:         a.prenom + ' ' + a.nom,
-        date_rdv:           a.date,
-        heure_rdv:          a.heure,
-      }),
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    closeDetail();
-    toast('❌ RDV refusé', a.prenom + ' ' + a.nom + ' — refus envoyé.');
-    await loadData();
-  } catch (e) {
-    toast('Erreur', 'Action échouée : ' + e.message);
-    btn.disabled      = false;
-    btn.textContent   = '❌ Refuser';
-    deleteConfirmed   = false;
-  }
+  const tabBadge = document.getElementById('sbTabBadge');
+  tabBadge.textContent = total;
+  tabBadge.classList.toggle('hidden', total === 0);
 }
 
 // ── Navigation ─────────────────────────────────────────────────────────────
@@ -168,6 +139,7 @@ function setView(v) {
 
 function selectDay(dateString) {
   selectedDate = dateString;
+  setSidebarTab('rdv');
   renderSidebar();
   render();
 }
@@ -179,57 +151,90 @@ function render() {
 
 // ── Sidebar ────────────────────────────────────────────────────────────────
 
+function setSidebarTab(tab) {
+  sidebarTab = tab;
+  document.getElementById('tabDem').classList.toggle('on', tab === 'demandes');
+  document.getElementById('tabRdv').classList.toggle('on', tab === 'rdv');
+}
+
 function renderSidebar() {
+  if (sidebarTab === 'demandes') renderSidebarDemandes();
+  else                           renderSidebarRdv();
+}
+
+function renderSidebarDemandes() {
+  document.getElementById('sbHead').classList.add('hidden');
+  const listEl = document.getElementById('sbList');
+
+  if (!pendingRequests.length) {
+    listEl.innerHTML = '<div class="empty-st"><div class="empty-ico">🌸</div>Aucune demande<br>en attente.</div>';
+    return;
+  }
+
+  listEl.innerHTML = pendingRequests.map(r => {
+    const prests  = [...(r.prestations || [])];
+    if (r.bijoux) prests.push('💎 Bijoux');
+    const canAct  = r.statut_interne === 'en_attente_validation';
+    const waiting = r.statut_interne === 'en_attente_formulaire'
+      ? '<div class="sb-dem-waiting">⏳ En attente du formulaire</div>'
+      : '';
+
+    return `
+      <div class="sb-dem-card">
+        <div class="sb-dem-name">${escHtml(r.prenom)} ${escHtml(r.nom)}</div>
+        <div class="sb-dem-meta">📅 ${escHtml(formatFullDate(r.date))} · ${escHtml(r.heure)}</div>
+        <div class="sb-dem-prests">
+          ${prests.map(p => `<span class="sb-dem-prest">${escHtml(p)}</span>`).join('')}
+        </div>
+        ${r.remarque ? `<div class="sb-dem-rem">📝 ${escHtml(r.remarque)}</div>` : ''}
+        ${waiting}
+        ${canAct ? `
+          <div class="sb-dem-actions">
+            <button class="btn bdd sb-dem-refuse" data-id="${escHtml(r.id)}">✕</button>
+            <button class="btn bp  sb-dem-accept" data-id="${escHtml(r.id)}">✓ Valider</button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+
+  listEl.querySelectorAll('.sb-dem-accept').forEach(btn =>
+    btn.addEventListener('click', () => acceptRequest(btn.dataset.id))
+  );
+  listEl.querySelectorAll('.sb-dem-refuse').forEach(btn =>
+    btn.addEventListener('click', () => refuseRequest(btn.dataset.id))
+  );
+}
+
+function renderSidebarRdv() {
+  const head = document.getElementById('sbHead');
+  head.classList.remove('hidden');
   document.getElementById('sbDate').innerHTML = formatSidebarDate(selectedDate);
 
-  // Pending — shown regardless of selected date
-  const pending = appointments
-    .filter(a => a.statut_interne === 'en_attente_validation')
-    .sort((a, b) => a.date.localeCompare(b.date) || a.heure.localeCompare(b.heure));
-
-  // Confirmed for the selected day
-  const dayAccepted = appointments
-    .filter(a => a.date === selectedDate && a.statut_interne === 'accepte')
+  const dayAppointments = appointments
+    .filter(a => a.date === selectedDate)
     .sort((a, b) => a.heure.localeCompare(b.heure));
 
   const listEl = document.getElementById('sbList');
-  let html = '';
-
-  if (pending.length > 0) {
-    html += `<div class="sb-sec-lbl">⏳ En attente (${pending.length})</div>`;
-    html += pending.map(a =>
-      `<div class="rdv-card rdv-pending" data-id="${escHtml(a.id)}">` +
-        `<div class="rdv-badge rdv-badge-wait">${escHtml(a.heure)}</div>` +
-        `<div class="rdv-info">` +
-          `<div class="rdv-nm">${escHtml(a.prenom)} ${escHtml(a.nom)}</div>` +
-          `<div class="rdv-pr">${escHtml(formatPrestations(a))}</div>` +
-          `<div class="rdv-dt">${escHtml(formatFullDate(a.date))}</div>` +
-        `</div>` +
-        `<div class="rdv-ch">›</div>` +
-      `</div>`
-    ).join('');
-    if (dayAccepted.length > 0) html += '<div class="sb-sep"></div>';
+  if (!dayAppointments.length) {
+    listEl.innerHTML = '<div class="empty-st"><div class="empty-ico">🌸</div>Aucun rendez-vous<br>ce jour-là.</div>';
+    return;
   }
 
-  if (dayAccepted.length > 0) {
-    html += dayAccepted.map(a =>
-      `<div class="rdv-card" data-id="${escHtml(a.id)}">` +
-        `<div class="rdv-badge">${escHtml(a.heure)}</div>` +
-        `<div class="rdv-info">` +
-          `<div class="rdv-nm">${escHtml(a.prenom)} ${escHtml(a.nom)}</div>` +
-          `<div class="rdv-pr">${escHtml(formatPrestations(a))}</div>` +
-        `</div>` +
-        `<div class="rdv-ch">›</div>` +
-      `</div>`
-    ).join('');
-  } else if (pending.length === 0) {
-    html = '<div class="empty-st"><div class="empty-ico">🌸</div>Aucun rendez-vous<br>ce jour-là.</div>';
-  }
+  listEl.innerHTML = dayAppointments.map(a =>
+    `<div class="rdv-card" data-id="${escHtml(a.id)}">` +
+      `<div class="rdv-badge">${escHtml(a.heure)}</div>` +
+      `<div class="rdv-info">` +
+        `<div class="rdv-nm">${escHtml(a.prenom)} ${escHtml(a.nom)}</div>` +
+        `<div class="rdv-pr">${escHtml(formatPrestations(a))}</div>` +
+      `</div>` +
+      `<div class="rdv-ch">›</div>` +
+    `</div>`
+  ).join('');
 
-  listEl.innerHTML = html;
-  listEl.querySelectorAll('.rdv-card').forEach(card => {
-    card.addEventListener('click', () => openDetail(card.dataset.id));
-  });
+  listEl.querySelectorAll('.rdv-card').forEach(card =>
+    card.addEventListener('click', () => openDetail(card.dataset.id))
+  );
 }
 
 // ── Month view ─────────────────────────────────────────────────────────────
@@ -244,7 +249,6 @@ function renderMonth() {
   const daysInMonth     = new Date(y, m + 1, 0).getDate();
   const daysInPrevMonth = new Date(y, m, 0).getDate();
   const today           = todayDateString();
-  const accepted        = appointments.filter(a => a.statut_interne === 'accepte');
 
   let html = '<div class="mgrid"><div class="mrow-h">' +
     DAYS.map(d => `<div class="mhc">${d}</div>`).join('') +
@@ -255,17 +259,18 @@ function renderMonth() {
   }
 
   for (let d = 1; d <= daysInMonth; d++) {
-    const ds  = y + '-' + pad2(m + 1) + '-' + pad2(d);
-    const cls = 'mc' + (ds === today ? ' tod' : '') + (ds === selectedDate ? ' sel' : '');
-    const dayRdv  = accepted.filter(a => a.date === ds).sort((a, b) => a.heure.localeCompare(b.heure));
-    const visible = dayRdv.slice(0, 2);
-    const extra   = dayRdv.length - 2;
+    const ds       = y + '-' + pad2(m + 1) + '-' + pad2(d);
+    const cls      = 'mc' + (ds === today ? ' tod' : '') + (ds === selectedDate ? ' sel' : '');
+    const dayAppts = appointments.filter(a => a.date === ds).sort((a, b) => a.heure.localeCompare(b.heure));
+    const visible  = dayAppts.slice(0, 2);
+    const extra    = dayAppts.length - 2;
 
     html += `<div class="${cls}" data-ds="${ds}"><div class="dn">${d}</div>`;
     visible.forEach(a => {
       html += `<div class="pill" data-id="${escHtml(a.id)}">` +
         `<span class="pt">${escHtml(a.heure)}</span>` +
-        `<span class="pn">${escHtml(a.prenom)}</span></div>`;
+        `<span class="pn">${escHtml(a.prenom)}</span>` +
+        `</div>`;
     });
     if (extra > 0) html += `<div class="mmore">+${extra} autre${extra > 1 ? 's' : ''}</div>`;
     html += '</div>';
@@ -279,12 +284,12 @@ function renderMonth() {
   html += '</div></div>';
   document.getElementById('cal').innerHTML = html;
 
-  document.querySelectorAll('#cal .mc:not(.out)').forEach(cell => {
-    cell.addEventListener('click', () => selectDay(cell.dataset.ds));
-  });
-  document.querySelectorAll('#cal .pill').forEach(pill => {
-    pill.addEventListener('click', e => { e.stopPropagation(); openDetail(pill.dataset.id); });
-  });
+  document.querySelectorAll('#cal .mc:not(.out)').forEach(cell =>
+    cell.addEventListener('click', () => selectDay(cell.dataset.ds))
+  );
+  document.querySelectorAll('#cal .pill').forEach(pill =>
+    pill.addEventListener('click', e => { e.stopPropagation(); openDetail(pill.dataset.id); })
+  );
 }
 
 // ── Week view ──────────────────────────────────────────────────────────────
@@ -299,10 +304,9 @@ function renderWeek() {
     return x;
   });
 
-  const today   = todayDateString();
-  const first   = weekDays[0];
-  const last    = weekDays[6];
-  const accepted = appointments.filter(a => a.statut_interne === 'accepte');
+  const today = todayDateString();
+  const first = weekDays[0];
+  const last  = weekDays[6];
 
   document.getElementById('period').textContent =
     pad2(first.getDate()) + '/' + pad2(first.getMonth() + 1) +
@@ -311,11 +315,13 @@ function renderWeek() {
 
   let html = '<div class="wc"><div class="whead"><div class="we"></div>';
   weekDays.forEach(x => {
-    const ds  = toDateString(x);
-    const sel = ds === selectedDate;
-    html += `<div class="whd${sel ? ' wsel' : ''}" data-ds="${ds}">` +
-      `<div class="wdn">${DAYS[(x.getDay() + 6) % 7]}</div>` +
-      `<div class="wnum${ds === today ? ' wt' : ''}">${x.getDate()}</div>` +
+    const ds         = toDateString(x);
+    const isToday    = ds === today;
+    const isSelected = ds === selectedDate;
+    html +=
+      `<div class="whd${isSelected ? ' wsel' : ''}" data-ds="${ds}">` +
+        `<div class="wdn">${DAYS[(x.getDay() + 6) % 7]}</div>` +
+        `<div class="wnum${isToday ? ' wt' : ''}">${x.getDate()}</div>` +
       `</div>`;
   });
 
@@ -324,17 +330,18 @@ function renderWeek() {
   html += '</div>';
 
   weekDays.forEach(x => {
-    const ds     = toDateString(x);
-    const dayRdv = accepted.filter(a => a.date === ds);
+    const ds       = toDateString(x);
+    const dayAppts = appointments.filter(a => a.date === ds);
     html += '<div class="wdc">';
     HOURS.forEach(() => { html += '<div class="wsl"></div>'; });
-    dayRdv.forEach(a => {
+    dayAppts.forEach(a => {
       const [hh, mm]     = a.heure.split(':').map(Number);
       const minutesFrom8 = (hh - 8) * 60 + mm;
       if (minutesFrom8 < 0 || minutesFrom8 >= 13 * 60) return;
-      html += `<div class="wapt" style="top:${minutesFrom8 / 60 * 60}px" data-id="${escHtml(a.id)}">` +
-        `<div class="wat">${escHtml(a.heure)}</div>` +
-        `<div class="wan">${escHtml(a.prenom)}</div>` +
+      html +=
+        `<div class="wapt" style="top:${minutesFrom8 / 60 * 60}px" data-id="${escHtml(a.id)}">` +
+          `<div class="wat">${escHtml(a.heure)}</div>` +
+          `<div class="wan">${escHtml(a.prenom)}</div>` +
         `</div>`;
     });
     html += '</div>';
@@ -343,132 +350,171 @@ function renderWeek() {
   html += '</div></div>';
   document.getElementById('cal').innerHTML = html;
 
-  document.querySelectorAll('#cal .whd').forEach(col => {
-    col.addEventListener('click', () => selectDay(col.dataset.ds));
-  });
-  document.querySelectorAll('#cal .wapt').forEach(apt => {
-    apt.addEventListener('click', () => openDetail(apt.dataset.id));
-  });
+  document.querySelectorAll('#cal .whd').forEach(col =>
+    col.addEventListener('click', () => selectDay(col.dataset.ds))
+  );
+  document.querySelectorAll('#cal .wapt').forEach(apt =>
+    apt.addEventListener('click', () => openDetail(apt.dataset.id))
+  );
 }
 
 // ── Detail modal ───────────────────────────────────────────────────────────
 
 function openDetail(id) {
-  const a = appointments.find(x => x.id === id);
+  const a = [...appointments, ...pendingRequests].find(x => x.id === id);
   if (!a) return;
-  activeId        = id;
-  deleteConfirmed = false;
-
-  if (selectedDate !== a.date) { selectedDate = a.date; renderSidebar(); }
+  activeId = id;
 
   document.getElementById('dtit').textContent = a.prenom + ' ' + a.nom;
 
   let body =
-    `<div class="dr"><span class="dic">👤</span><div><div class="dlb">Cliente</div>` +
-    `<div class="dv">${escHtml(a.prenom)} ${escHtml(a.nom)}</div></div></div>`;
+    `<div class="dr"><span class="dic">👤</span><div><div class="dlb">Cliente</div><div class="dv">${escHtml(a.prenom)} ${escHtml(a.nom)}</div></div></div>` +
+    `<div class="dr"><span class="dic">📅</span><div><div class="dlb">Date</div><div class="dv">${escHtml(formatFullDate(a.date))}</div></div></div>` +
+    `<div class="dr"><span class="dic">🕐</span><div><div class="dlb">Heure</div><div class="dv">${escHtml(a.heure)}</div></div></div>` +
+    `<div class="dr"><span class="dic">💅</span><div><div class="dlb">Prestation</div><div class="dv">${escHtml(formatPrestations(a))}</div></div></div>`;
 
-  if (a.email_client) {
-    body += `<div class="dr"><span class="dic">📧</span><div><div class="dlb">Email</div>` +
-      `<div class="dv">${escHtml(a.email_client)}</div></div></div>`;
-  }
-  if (a.age_client) {
-    body += `<div class="dr"><span class="dic">🎂</span><div><div class="dlb">Âge</div>` +
-      `<div class="dv">${escHtml(a.age_client)} ans</div></div></div>`;
-  }
-  body +=
-    `<div class="dr"><span class="dic">📅</span><div><div class="dlb">Date</div>` +
-    `<div class="dv">${escHtml(formatFullDate(a.date))}</div></div></div>` +
-    `<div class="dr"><span class="dic">🕐</span><div><div class="dlb">Heure</div>` +
-    `<div class="dv">${escHtml(a.heure)}</div></div></div>` +
-    `<div class="dr"><span class="dic">💅</span><div><div class="dlb">Prestation</div>` +
-    `<div class="dv">${escHtml(formatPrestations(a))}</div></div></div>`;
-
-  if (a.taille_ongles) {
-    body += `<div class="dr"><span class="dic">📏</span><div><div class="dlb">Taille des ongles</div>` +
-      `<div class="dv">${escHtml(a.taille_ongles)}</div></div></div>`;
-  }
-  if (a.photo_modele_url) {
-    body += `<div class="dr"><span class="dic">🖼️</span><div><div class="dlb">Photo modèle</div>` +
-      `<div class="dv"><a href="${escHtml(a.photo_modele_url)}" target="_blank" rel="noopener" style="color:var(--pk2)">Voir le fichier ↗</a></div></div></div>`;
-  }
-  if (a.photo_ongles_url) {
-    body += `<div class="dr"><span class="dic">📸</span><div><div class="dlb">Photo ongles naturels</div>` +
-      `<div class="dv"><a href="${escHtml(a.photo_ongles_url)}" target="_blank" rel="noopener" style="color:var(--pk2)">Voir le fichier ↗</a></div></div></div>`;
-  }
-  if (a.remarque) {
-    body += `<div class="dr"><span class="dic">📝</span><div><div class="dlb">Remarque</div>` +
-      `<div class="dv">${escHtml(a.remarque)}</div></div></div>`;
-  }
+  if (a.taille_ongles)
+    body += `<div class="dr"><span class="dic">📏</span><div><div class="dlb">Taille des ongles</div><div class="dv">${escHtml(a.taille_ongles)}</div></div></div>`;
+  if (a.age_client)
+    body += `<div class="dr"><span class="dic">🎂</span><div><div class="dlb">Âge</div><div class="dv">${escHtml(a.age_client)} ans</div></div></div>`;
+  if (a.email_client)
+    body += `<div class="dr"><span class="dic">📧</span><div><div class="dlb">Email</div><div class="dv">${escHtml(a.email_client)}</div></div></div>`;
+  if (a.remarque)
+    body += `<div class="dr"><span class="dic">📝</span><div><div class="dlb">Remarque</div><div class="dv">${escHtml(a.remarque)}</div></div></div>`;
+  if (a.photo_modele_url)
+    body += `<div class="dr"><span class="dic">🖼️</span><div><div class="dlb">Modèle souhaité</div><div class="dv"><img class="detail-img" src="${escHtml(a.photo_modele_url)}" alt="Modèle"></div></div></div>`;
+  if (a.photo_ongles_url)
+    body += `<div class="dr"><span class="dic">💅</span><div><div class="dlb">Ongle naturel</div><div class="dv"><img class="detail-img" src="${escHtml(a.photo_ongles_url)}" alt="Ongle naturel"></div></div></div>`;
 
   document.getElementById('dbdy').innerHTML = body;
-
-  // Configure footer buttons based on status
-  const delBtn  = document.getElementById('delBtn');
-  const editBtn = document.getElementById('editBtn');
-
-  if (a.statut_interne === 'en_attente_validation') {
-    delBtn.textContent    = '❌ Refuser';
-    delBtn.className      = 'btn bdd';
-    delBtn.disabled       = false;
-    delBtn.style.display  = '';
-    editBtn.textContent   = '✅ Accepter';
-    editBtn.className     = 'btn bp';
-    editBtn.disabled      = false;
-    editBtn.style.display = '';
-  } else if (a.statut_interne === 'accepte') {
-    delBtn.textContent    = '❌ Refuser';
-    delBtn.className      = 'btn bdd';
-    delBtn.disabled       = false;
-    delBtn.style.display  = '';
-    editBtn.style.display = 'none';
-  } else {
-    // en_attente_formulaire or other — read-only
-    delBtn.style.display  = 'none';
-    editBtn.style.display = 'none';
-  }
-
   document.getElementById('dov').classList.remove('hidden');
 }
 
 function closeDetail() {
-  activeId        = null;
-  deleteConfirmed = false;
-  // Reset buttons to defaults
-  const delBtn  = document.getElementById('delBtn');
-  delBtn.textContent    = '❌ Refuser';
-  delBtn.className      = 'btn bdd';
-  delBtn.disabled       = false;
-  delBtn.style.display  = '';
-  const editBtn = document.getElementById('editBtn');
-  editBtn.textContent   = '✅ Accepter';
-  editBtn.className     = 'btn bp';
-  editBtn.disabled      = false;
-  editBtn.style.display = '';
+  activeId = null;
   document.getElementById('dov').classList.add('hidden');
 }
 
-// Two-click confirmation before refusing
-function askDelete() {
-  if (!deleteConfirmed) {
-    deleteConfirmed           = true;
-    const btn                 = document.getElementById('delBtn');
-    btn.textContent           = '⚠️ Confirmer ?';
-    btn.className             = 'btn bd2';
+// ── Demandes modal ─────────────────────────────────────────────────────────
+
+function openDemandes() {
+  renderDemandes();
+  document.getElementById('demOv').classList.remove('hidden');
+}
+
+function closeDemandes() {
+  document.getElementById('demOv').classList.add('hidden');
+}
+
+function renderDemandes() {
+  const list = document.getElementById('demList');
+
+  if (!pendingRequests.length) {
+    list.innerHTML = '<div class="empty-st"><div class="empty-ico">🌸</div>Aucune demande en attente.<br>Tout est à jour !</div>';
     return;
   }
-  refuseRdv();
+
+  list.innerHTML = pendingRequests.map(r => {
+    const prests  = [...(r.prestations || [])];
+    if (r.bijoux) prests.push('💎 Bijoux');
+    const canAct  = r.statut_interne === 'en_attente_validation';
+    const waiting = r.statut_interne === 'en_attente_formulaire'
+      ? '<div class="dem-waiting">⏳ En attente du formulaire client</div>'
+      : '';
+
+    return `
+      <div class="dem-card">
+        <div class="dem-top">
+          <div class="dem-client">${escHtml(r.prenom)} ${escHtml(r.nom)}</div>
+          <div class="dem-ts">Reçue le ${escHtml(r.submittedAt)}</div>
+        </div>
+        <div class="dem-meta">📅 ${escHtml(formatFullDate(r.date))} à ${escHtml(r.heure)}</div>
+        <div class="dem-prests">
+          ${prests.map(p => `<span class="dem-prest">${escHtml(p)}</span>`).join('')}
+        </div>
+        ${r.remarque ? `<div class="dem-rem">📝 ${escHtml(r.remarque)}</div>` : ''}
+        ${(r.photo_modele_url || r.photo_ongles_url) ? `
+          <div class="dem-imgs">
+            ${r.photo_modele_url ? `<div class="dem-img-wrap"><span class="dem-img-lbl">Modèle</span><img src="${escHtml(r.photo_modele_url)}" class="dem-img" alt="Modèle"></div>` : ''}
+            ${r.photo_ongles_url ? `<div class="dem-img-wrap"><span class="dem-img-lbl">Ongle</span><img src="${escHtml(r.photo_ongles_url)}" class="dem-img" alt="Ongle"></div>` : ''}
+          </div>
+        ` : ''}
+        ${waiting}
+        ${canAct ? `
+          <div class="dem-actions">
+            <button class="btn bdd dem-refuse" data-id="${escHtml(r.id)}">✕ Refuser</button>
+            <button class="btn bp  dem-accept" data-id="${escHtml(r.id)}">✓ Valider</button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+
+  list.querySelectorAll('.dem-accept').forEach(btn =>
+    btn.addEventListener('click', () => acceptRequest(btn.dataset.id))
+  );
+  list.querySelectorAll('.dem-refuse').forEach(btn =>
+    btn.addEventListener('click', () => refuseRequest(btn.dataset.id))
+  );
 }
 
-function handleEditBtn() {
-  const a = appointments.find(x => x.id === activeId);
-  if (!a) return;
-  if (a.statut_interne === 'en_attente_validation') acceptRdv();
+// ── Accept / Refuse ────────────────────────────────────────────────────────
+
+async function acceptRequest(id) {
+  const req = pendingRequests.find(r => r.id === id);
+  if (!req) return;
+
+  try {
+    toast('Traitement…', 'Validation en cours');
+    const res = await fetch('/api/rdv', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ booking_uid: req.booking_uid_calcom, action: 'accept' }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    await loadData();
+    renderDemandes();
+    toast('RDV validé ✓', req.prenom + ' ' + req.nom + ' — ' + req.date + ' à ' + req.heure);
+  } catch (e) {
+    toast('Erreur', e.message);
+  }
 }
 
-// ── Form modal stubs (form hidden — appointments come from Cal.com) ─────────
+async function refuseRequest(id) {
+  const req = pendingRequests.find(r => r.id === id);
+  if (!req) return;
 
-function closeForm() {
-  document.getElementById('fov').classList.add('hidden');
+  // Deux clics pour confirmer
+  if (refuseConfirmId !== id) {
+    refuseConfirmId = id;
+    document.querySelectorAll('.dem-refuse, .sb-dem-refuse').forEach(btn => {
+      if (btn.dataset.id === id) {
+        btn.textContent = '⚠️ Confirmer ?';
+        btn.classList.replace('bdd', 'bd2');
+      }
+    });
+    setTimeout(() => {
+      refuseConfirmId = null;
+      renderDemandes();
+      renderSidebar();
+    }, 3000);
+    return;
+  }
+
+  refuseConfirmId = null;
+  try {
+    const res = await fetch('/api/rdv', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ booking_uid: req.booking_uid_calcom, action: 'refuse' }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    await loadData();
+    renderDemandes();
+    toast('Demande refusée', req.prenom + ' ' + req.nom);
+  } catch (e) {
+    toast('Erreur', e.message);
+  }
 }
 
 // ── Toast ──────────────────────────────────────────────────────────────────
@@ -476,41 +522,50 @@ function closeForm() {
 function toast(title, body) {
   const el     = document.createElement('div');
   el.className = 'toast';
-  el.innerHTML = `<div class="tt">${title}</div><div class="tb">${body}</div>`;
+  el.innerHTML = `<div class="tt">${escHtml(title)}</div><div class="tb">${escHtml(body)}</div>`;
   document.getElementById('toasts').appendChild(el);
   setTimeout(() => { el.style.transition = 'opacity .4s'; el.style.opacity = '0'; }, 3500);
   setTimeout(() => el.remove(), 4000);
 }
 
-// ── Static event listeners ─────────────────────────────────────────────────
+// ── Event listeners ────────────────────────────────────────────────────────
 
 document.getElementById('prev').addEventListener('click', () => {
   if (view === 'month') cur.setMonth(cur.getMonth() - 1);
   else cur.setDate(cur.getDate() - 7);
   render();
 });
+
 document.getElementById('next').addEventListener('click', () => {
   if (view === 'month') cur.setMonth(cur.getMonth() + 1);
   else cur.setDate(cur.getDate() + 7);
   render();
 });
+
 document.getElementById('btnM').addEventListener('click', () => setView('month'));
 document.getElementById('btnW').addEventListener('click', () => setView('week'));
+document.getElementById('btnD').addEventListener('click', openDemandes);
 
-// Hide manual-add button — appointments come from Cal.com
-document.getElementById('sbAdd').style.display = 'none';
+document.getElementById('tabDem').addEventListener('click', () => {
+  setSidebarTab('demandes');
+  renderSidebar();
+});
+document.getElementById('tabRdv').addEventListener('click', () => {
+  setSidebarTab('rdv');
+  renderSidebar();
+});
 
-document.getElementById('delBtn').addEventListener('click', askDelete);
-document.getElementById('closeDBtn').addEventListener('click', closeDetail);
-document.getElementById('editBtn').addEventListener('click', handleEditBtn);
+document.getElementById('closeDBtn').addEventListener('click',   closeDetail);
 document.getElementById('closeDetail').addEventListener('click', closeDetail);
+document.getElementById('closeDemX').addEventListener('click',   closeDemandes);
+document.getElementById('closeDemBtn').addEventListener('click', closeDemandes);
 
-document.getElementById('cancelBtn').addEventListener('click', closeForm);
-document.getElementById('saveBtn').addEventListener('click', closeForm);
-document.getElementById('closeForm').addEventListener('click', closeForm);
+document.getElementById('dov').addEventListener('click',   e => { if (e.target.id === 'dov')   closeDetail(); });
+document.getElementById('demOv').addEventListener('click', e => { if (e.target.id === 'demOv') closeDemandes(); });
 
-document.getElementById('dov').addEventListener('click', e => { if (e.target.id === 'dov') closeDetail(); });
-document.getElementById('fov').addEventListener('click', e => { if (e.target.id === 'fov') closeForm(); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDetail(); closeForm(); } });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeDetail(); closeDemandes(); }
+});
 
+// ── Init ───────────────────────────────────────────────────────────────────
 loadData();
