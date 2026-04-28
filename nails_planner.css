@@ -315,12 +315,16 @@ aside {
   border: 1px solid var(--bd);
   border-radius: 10px;
   overflow: hidden;
+  background-image: url('bg_cal.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .mrow-h {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  background: var(--s2);
+  background: rgba(24, 24, 24, 0.88);
   border-bottom: 1px solid var(--bd);
 }
 
@@ -341,7 +345,7 @@ aside {
 }
 
 .mc {
-  background: var(--s1);
+  background: rgba(17, 17, 17, 0.72);
   padding: 4px;
   border-right: 1px solid var(--bd);
   border-bottom: 1px solid var(--bd);
@@ -351,7 +355,7 @@ aside {
 }
 
 .mc:hover {
-  background: var(--s2);
+  background: rgba(24, 24, 24, 0.88);
 }
 
 .mc:nth-child(7n) {
@@ -359,17 +363,17 @@ aside {
 }
 
 .mc.out {
-  background: var(--bg);
+  background: rgba(8, 8, 8, 0.55);
   opacity: .5;
   cursor: default;
 }
 
 .mc.out:hover {
-  background: var(--bg);
+  background: rgba(8, 8, 8, 0.55);
 }
 
 .mc.sel {
-  background: #1a0010;
+  background: rgba(26, 0, 16, 0.82);
 }
 
 .mc.sel .dn,
@@ -432,12 +436,16 @@ aside {
   border: 1px solid var(--bd);
   border-radius: 10px;
   overflow: hidden;
+  background-image: url('bg_cal.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .whead {
   display: grid;
   grid-template-columns: 42px repeat(7, 1fr);
-  background: var(--s2);
+  background: rgba(24, 24, 24, 0.88);
   border-bottom: 1px solid var(--bd);
   position: sticky;
   top: 0;
@@ -501,7 +509,7 @@ aside {
 }
 
 .wtc {
-  background: var(--s2);
+  background: rgba(24, 24, 24, 0.82);
 }
 
 .wts {
@@ -516,7 +524,7 @@ aside {
 }
 
 .wdc {
-  background: var(--s1);
+  background: rgba(17, 17, 17, 0.72);
   position: relative;
   height: 780px;
   border-right: 1px solid var(--bd);
