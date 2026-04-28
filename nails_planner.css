@@ -315,9 +315,10 @@ aside {
   border: 1px solid var(--bd);
   border-radius: 10px;
   overflow: hidden;
+  background-color: var(--bg);
   background-image: url('bg_cal.jpg');
-  background-size: cover;
-  background-position: center;
+  background-size: contain;
+  background-position: center center;
   background-repeat: no-repeat;
 }
 
@@ -436,9 +437,10 @@ aside {
   border: 1px solid var(--bd);
   border-radius: 10px;
   overflow: hidden;
+  background-color: var(--bg);
   background-image: url('bg_cal.jpg');
-  background-size: cover;
-  background-position: center;
+  background-size: contain;
+  background-position: center center;
   background-repeat: no-repeat;
 }
 
