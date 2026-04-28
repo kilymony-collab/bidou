@@ -602,7 +602,7 @@ function formatSlotDayHeader(dateStr) {
 
 function openManualForm() {
   // Reset all fields
-  ['mPrenom','mNom','mEmail','mTel','mNotes'].forEach(id => { document.getElementById(id).value = ''; });
+  ['mPrenom','mNom','mTel','mNotes'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('mAge').value  = '';
   document.getElementById('mDate').value = '';
   document.getElementById('mBijoux').checked = false;
@@ -738,7 +738,6 @@ document.querySelectorAll('.taille-opt').forEach(btn => {
 document.getElementById('saveManBtn').addEventListener('click', async () => {
   const prenom     = document.getElementById('mPrenom').value.trim();
   const nom        = document.getElementById('mNom').value.trim();
-  const email      = document.getElementById('mEmail').value.trim();
   const telephone  = document.getElementById('mTel').value.trim();
   const age        = document.getElementById('mAge').value.trim();
   const prestation = [...selectedPrestations].join(' · ');
@@ -771,7 +770,7 @@ document.getElementById('saveManBtn').addEventListener('click', async () => {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        prenom, nom, email, telephone,
+        prenom, nom, telephone,
         age, prestation, bijoux,
         taille_ongles: selectedTaille || '',
         notes,
