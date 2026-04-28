@@ -308,6 +308,12 @@ aside {
   flex: 1;
   overflow-y: auto;
   padding: 10px;
+  background-color: var(--bg);
+  background-image: url('bg_cal.jpg');
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-attachment: local;
 }
 
 /* MONTH */
@@ -315,11 +321,6 @@ aside {
   border: 1px solid var(--bd);
   border-radius: 10px;
   overflow: hidden;
-  background-color: var(--bg);
-  background-image: url('bg_cal.jpg');
-  background-size: contain;
-  background-position: center center;
-  background-repeat: no-repeat;
 }
 
 .mrow-h {
@@ -437,11 +438,6 @@ aside {
   border: 1px solid var(--bd);
   border-radius: 10px;
   overflow: hidden;
-  background-color: var(--bg);
-  background-image: url('bg_cal.jpg');
-  background-size: contain;
-  background-position: center center;
-  background-repeat: no-repeat;
 }
 
 .whead {
