@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>make_urnails.up — Réserver</title>
+  <link rel="stylesheet" href="caly.css">
+</head>
+<body>
+
+<!-- Header with logo + tagline + nav + time toggle -->
+<header>
+  <div class="logo">💅 make_urnails.up</div>
+  <div class="tagline">Réserve ton rendez-vous avec ta PO préférée ✨</div>
+  <div class="nav">
+    <button class="ibtn" id="prev">‹</button>
+    <div class="period" id="period"></div>
+    <button class="ibtn" id="next">›</button>
+  </div>
+</header>
+
+<!-- My booking banner -->
+<div class="my-booking hidden" id="myBooking">
+  <div class="mb-tag">Mon RDV</div>
+  <div class="mb-status">
+    <div class="mb-dot attente" id="mbDot"></div>
+    <span id="mbStatus">En attente</span>
+  </div>
+  <div class="mb-info" id="mbInfo"></div>
+  <button class="mb-cancel" id="mbCancelBtn">Annuler</button>
+</div>
+
+<!-- Main layout -->
+<div class="layout">
+
+  <!-- Calendar (bg image + rounded cells) -->
+  <div class="cal-area">
+    <div class="mgrid">
+      <div class="mrow-h" id="mrowH"></div>
+      <div class="mbody" id="mbody"></div>
+    </div>
+  </div>
+
+  <!-- Slots panel -->
+  <div class="slots-panel">
+    <div class="sp-head">
+      <div class="sp-lbl">Créneaux disponibles</div>
+      <div class="sp-date" id="spDate"><span>—</span></div>
+    </div>
+    <div class="sp-list" id="spList">
+      <div class="sp-empty">
+        <div class="sp-empty-ico">📅</div>
+        Sélectionnez une date<br>pour voir les créneaux
+      </div>
+    </div>
+    <div class="sp-legend">
+      <div class="sp-leg-row"><div class="leg-dot" style="background:#4caf50"></div> Disponible</div>
+      <div class="sp-leg-row"><div class="leg-dot" style="background:#f5a623"></div> En attente</div>
+      <div class="sp-leg-row"><div class="leg-dot" style="background:#555"></div> Indisponible</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── BOOKING FORM MODAL ──────────────────────────────────────────────── -->
+<div class="ov hidden" id="formOv">
+  <div class="modal">
+    <div class="mhdr">
+      <div>
+        <div class="mhdr-sub">make_urnails.up</div>
+        <div class="mtit" id="formTitle">Demande de rendez-vous</div>
+      </div>
+      <button class="mclose" id="closeForm">✕</button>
+    </div>
+    <div class="mbdy">
+      <div class="step-bar">
+        <div class="step-pip active" id="pip1"></div>
+        <div class="step-pip" id="pip2"></div>
+        <div class="step-pip" id="pip3"></div>
+        <div class="step-pip" id="pip4"></div>
+      </div>
+      <div class="step-lbl" id="stepLbl">Étape 1 sur 4 — Vos coordonnées</div>
+
+      <!-- Step 1 -->
+      <div id="step1">
+        <div class="fsec">
+          <div class="fsec-title">👤 Vos coordonnées</div>
+          <div class="frow">
+            <div class="fg">
+              <label class="fl" for="prenom">Prénom</label>
+              <input class="fi" id="prenom" type="text" placeholder="Marie" autocomplete="given-name">
+            </div>
+            <div class="fg">
+              <label class="fl" for="nom">Nom</label>
+              <input class="fi" id="nom" type="text" placeholder="Dupont" autocomplete="family-name">
+            </div>
+          </div>
+          <div class="frow">
+            <div class="fg">
+              <label class="fl" for="age">Âge</label>
+              <input class="fi" id="age" type="number" min="1" max="120" placeholder="25">
+            </div>
+            <div class="fg">
+              <label class="fl" for="telephone">Téléphone</label>
+              <input class="fi" id="telephone" type="tel" placeholder="06 00 00 00 00" autocomplete="tel">
+            </div>
+          </div>
+        </div>
+        <div class="ferr hidden" id="err1"></div>
+      </div>
+
+      <!-- Step 2 -->
+      <div id="step2" class="hidden">
+        <div class="fsec">
+          <div class="fsec-title">💅 Prestation souhaitée</div>
+          <div class="fg">
+            <div class="pgrid">
+              <div class="popt" data-val="Pose simple">Pose simple</div>
+              <div class="popt" data-val="Nail art">Nail art</div>
+              <div class="popt" data-val="Freestyle chargée">Freestyle chargée</div>
+              <div class="popt" data-val="Pédicure">Pédicure</div>
+              <div class="popt" data-val="Dépose">Dépose</div>
+              <div class="popt" data-val="Remplissage">Remplissage</div>
+              <div class="popt" data-val="Dépose extérieure">Dépose ext.</div>
+              <div class="popt" data-val="Réparation">Réparation</div>
+            </div>
+          </div>
+        </div>
+        <div class="fsec hidden" id="tailleSection">
+          <div class="fsec-title">📏 Taille de l'ongle</div>
+          <div class="fg">
+            <div class="taille-grid">
+              <div class="topt" data-val="Court">Court</div>
+              <div class="topt" data-val="Moyen">Moyen</div>
+              <div class="topt" data-val="Long">Long</div>
+            </div>
+          </div>
+        </div>
+        <div class="fsec">
+          <div class="fsec-title">💎 Options</div>
+          <div class="fg">
+            <label class="bijoux-label">
+              <input class="bijoux-cb" type="checkbox" id="bijoux">
+              Avec bijoux
+            </label>
+          </div>
+        </div>
+        <div class="ferr hidden" id="err2"></div>
+      </div>
+
+      <!-- Step 3 -->
+      <div id="step3" class="hidden">
+        <div class="fsec">
+          <div class="fsec-title">📸 Photo de vos ongles naturels</div>
+          <div class="fg">
+            <div class="file-zone" id="zoneOngles">
+              <input type="file" id="fileOngles" accept="image/*">
+              <div class="fz-ico">🖼️</div>
+              <div class="fz-label">Glissez une photo ou <span>parcourez</span></div>
+              <div class="fz-limit">JPG, PNG, WEBP — max 4 Mo</div>
+            </div>
+            <div id="previewOngles"></div>
+          </div>
+        </div>
+        <div class="fsec">
+          <div class="fsec-title">🎨 Modèle souhaité <span class="opt-tag">optionnel</span></div>
+          <div class="fg">
+            <div class="file-zone" id="zoneModele">
+              <input type="file" id="fileModele" accept="image/*">
+              <div class="fz-ico">✨</div>
+              <div class="fz-label">Glissez une photo ou <span>parcourez</span></div>
+              <div class="fz-limit">JPG, PNG, WEBP — max 4 Mo</div>
+            </div>
+            <div id="previewModele"></div>
+          </div>
+        </div>
+        <div class="ferr hidden" id="err3"></div>
+      </div>
+
+      <!-- Step 4 -->
+      <div id="step4" class="hidden">
+        <div class="recap-slot" id="recapSlot"></div>
+        <div id="recapRows"></div>
+        <div class="ferr hidden" id="err4"></div>
+      </div>
+    </div>
+
+    <div class="mft">
+      <button class="btn bn hidden" id="btnPrev">← Retour</button>
+      <button class="btn bp" id="btnNext">Suivant →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── SUCCESS MODAL ──────────────────────────────────────────────────────── -->
+<div class="ov hidden" id="successOv">
+  <div class="modal success-modal">
+    <div class="mhdr">
+      <div>
+        <div class="mhdr-sub">make_urnails.up</div>
+        <div class="mtit">Demande envoyée</div>
+      </div>
+      <button class="mclose" id="closeSuccess">✕</button>
+    </div>
+    <div class="mbdy">
+      <div class="success-body">
+        <div class="suc-ico">🎉</div>
+        <div class="suc-title">Votre demande a bien été envoyée !</div>
+        <div class="suc-text">
+          La professionnelle va étudier votre demande.<br>
+          Vous verrez le statut mis à jour automatiquement sur cette page.
+        </div>
+      </div>
+    </div>
+    <div class="mft">
+      <button class="btn bp" id="closeSucBtn">Parfait !</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CANCEL CONFIRM MODAL ───────────────────────────────────────────────── -->
+<div class="ov hidden" id="cancelOv">
+  <div class="modal minor-modal">
+    <div class="mhdr">
+      <div>
+        <div class="mhdr-sub">make_urnails.up</div>
+        <div class="mtit">Annuler la demande</div>
+      </div>
+      <button class="mclose" id="closeCancelX">✕</button>
+    </div>
+    <div class="mbdy">
+      <p class="confirm-text">
+        Êtes-vous sûr(e) de vouloir annuler votre demande ?<br><br>
+        Le créneau sera remis à disposition.
+      </p>
+    </div>
+    <div class="mft">
+      <button class="btn bn" id="closeCancelBtn">Non, garder</button>
+      <button class="btn bdd" id="confirmCancelBtn">Oui, annuler</button>
+    </div>
+  </div>
+</div>
+
+<script src="caly.js"></script>
+</body>
+</html>
