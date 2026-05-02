@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>make_urnails.up</title>
+  <link rel="stylesheet" href="nails_planner.css">
+</head>
+<body>
+
+<header>
+  <div class="logo">💅 make_urnails.up</div>
+  <div class="nav">
+    <button class="ibtn" id="prev">‹</button>
+    <div class="period" id="period"></div>
+    <button class="ibtn" id="next">›</button>
+  </div>
+  <div class="toggle">
+    <button class="tvb on" id="btnM">Mois</button>
+    <button class="tvb" id="btnW">Semaine</button>
+  </div>
+  <button class="dem-btn" id="btnSlot">📅 Créneaux</button>
+  <button class="dem-btn" id="btnD">
+    Demandes
+    <span class="dem-badge hidden" id="demBadge">0</span>
+  </button>
+</header>
+
+<div class="layout">
+  <aside>
+    <div class="sb-tabs">
+      <button class="sb-tab on" id="tabDem">
+        Demandes
+        <span class="sb-tab-badge hidden" id="sbTabBadge">0</span>
+      </button>
+      <button class="sb-tab" id="tabRdv">RDV du jour</button>
+    </div>
+    <div class="sb-head hidden" id="sbHead">
+      <div class="sb-label">Rendez-vous du</div>
+      <div class="sb-date" id="sbDate">—</div>
+    </div>
+    <div class="sb-list" id="sbList"></div>
+    <button class="sb-add" id="sbAdd">
+      <span class="icon-add">+</span> Nouveau rendez-vous
+    </button>
+  </aside>
+
+  <main id="cal"></main>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="ov hidden" id="dov">
+  <div class="modal">
+    <div class="mhdr">
+      <div>
+        <div class="mhdr-sub">Fiche cliente</div>
+        <div class="mtit" id="dtit"></div>
+      </div>
+      <button class="mclose" id="closeDetail">✕</button>
+    </div>
+    <div class="mbdy" id="dbdy"></div>
+    <div class="mft">
+      <button class="btn bn" id="closeDBtn">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEMANDES MODAL -->
+<div class="ov hidden" id="demOv">
+  <div class="modal dem-modal">
+    <div class="mhdr">
+      <div>
+        <div class="mhdr-sub">make_urnails.up</div>
+        <div class="mtit">Demandes de rendez-vous</div>
+      </div>
+      <button class="mclose" id="closeDemX">✕</button>
+    </div>
+    <div class="mbdy" id="demList"></div>
+    <div class="mft">
+      <button class="btn bn" id="closeDemBtn">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- AJOUT MANUEL MODAL -->
+<div class="ov hidden" id="manOv">
+  <div class="modal man-modal">
+    <div class="mhdr">
+      <div>
+        <div class="mhdr-sub">make_urnails.up</div>
+        <div class="mtit">Nouveau rendez-vous</div>
+      </div>
+      <button class="mclose" id="closeMan">✕</button>
+    </div>
+    <div class="mbdy">
+
+      <!-- Cliente -->
+      <div class="fsec">
+        <div class="fsec-title">👤 Cliente</div>
+        <div class="frow">
+          <div class="fg">
+            <label class="fl">Prénom *</label>
+            <input class="fi" id="mPrenom" placeholder="Ex: Marie" autocomplete="off">
+          </div>
+          <div class="fg">
+            <label class="fl">Nom *</label>
+            <input class="fi" id="mNom" placeholder="Ex: Dupont" autocomplete="off">
+          </div>
+        </div>
+        <div class="frow">
+          <div class="fg">
+            <label class="fl">Téléphone *</label>
+            <input class="fi" type="tel" id="mTel" placeholder="Ex: +590 690 12 34 56">
+          </div>
+          <div class="fg">
+            <label class="fl">Âge *</label>
+            <input class="fi" type="number" id="mAge" placeholder="Ex: 25" min="18" max="99">
+          </div>
+        </div>
+      </div>
+
+      <!-- Date & Créneau -->
+      <div class="fsec">
+        <div class="fsec-title">📅 Date &amp; créneau</div>
+        <div class="fg">
+          <label class="fl">Date *</label>
+          <input class="fi" type="date" id="mDate">
+        </div>
+        <div id="slotsLoading" class="slots-msg hidden">⏳ Chargement des créneaux…</div>
+        <div id="slotsEmpty"   class="slots-msg hidden">🚫 Aucun créneau disponible ce jour.</div>
+        <div class="hidden" id="slotsSection">
+          <div class="slots-day-hdr" id="slotsDayHdr"></div>
+          <div class="slots-grid" id="slotsGrid"></div>
+        </div>
+      </div>
+
+      <!-- Prestation -->
+      <div class="fsec">
+        <div class="fsec-title">💅 Prestation *</div>
+        <div class="pgrid" id="mPrestGrid">
+          <button type="button" class="popt" data-v="Pose simple">Pose simple</button>
+          <button type="button" class="popt" data-v="Nail art">Nail art</button>
+          <button type="button" class="popt" data-v="Freestyle chargée">Freestyle chargée</button>
+          <button type="button" class="popt" data-v="Pédicure">Pédicure</button>
+          <button type="button" class="popt" data-v="Dépose">Dépose</button>
+          <button type="button" class="popt" data-v="Remplissage">Remplissage</button>
+          <button type="button" class="popt" data-v="Dépose extérieure">Dépose extérieure</button>
+          <button type="button" class="popt" data-v="Réparation">Réparation</button>
+        </div>
+
+        <!-- Taille des ongles (conditionnel) -->
+        <div class="hidden" id="tailleSection">
+          <label class="fl" style="margin-top:10px">Taille des ongles *</label>
+          <div class="taille-grid">
+            <button type="button" class="taille-opt" data-v="Court">Court</button>
+            <button type="button" class="taille-opt" data-v="Moyen">Moyen</button>
+            <button type="button" class="taille-opt" data-v="Long">Long</button>
+          </div>
+        </div>
+
+        <label class="bijoux-label">
+          <input type="checkbox" id="mBijoux" class="bijoux-cb">
+          <span>💎 Bijoux</span>
+        </label>
+      </div>
+
+      <!-- Remarque -->
+      <div class="fsec">
+        <div class="fsec-title">📝 Remarque <span class="opt-tag">optionnel</span></div>
+        <div class="fg">
+          <input class="fi" id="mNotes" placeholder="Ex: motifs floraux, allergie acrylique…">
+        </div>
+      </div>
+
+      <div class="ferr" id="manErr"></div>
+    </div>
+    <div class="mft">
+      <button class="btn bn" id="cancelManBtn">Annuler</button>
+      <button class="btn bp" id="saveManBtn">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- AJOUT CRÉNEAU MODAL -->
+<div class="ov hidden" id="slotOv">
+  <div class="modal slot-modal">
+    <div class="mhdr">
+      <div>
+        <div class="mhdr-sub">make_urnails.up</div>
+        <div class="mtit">Ajouter un créneau</div>
+      </div>
+      <button class="mclose" id="closeSlot">✕</button>
+    </div>
+    <div class="mbdy">
+      <div class="fsec">
+        <div class="fsec-title">📅 Date &amp; heure</div>
+        <div class="frow">
+          <div class="fg">
+            <label class="fl">Date *</label>
+            <input class="fi" type="date" id="sDate">
+          </div>
+          <div class="fg">
+            <label class="fl">Heure *</label>
+            <input class="fi" type="time" id="sHeure" step="1800">
+          </div>
+        </div>
+      </div>
+      <div class="ferr" id="slotErr"></div>
+    </div>
+    <div class="mft">
+      <button class="btn bn" id="cancelSlotBtn">Annuler</button>
+      <button class="btn bp" id="saveSlotBtn">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script src="nails_planner.js"></script>
+</body>
+</html>
