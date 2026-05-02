@@ -4,10 +4,12 @@ const HOURS  = [8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
 
 let appointments    = [];   // statut_interne === 'accepte'
 let pendingRequests = [];   // en_attente_validation ou en_attente_formulaire
+let slots           = [];   // Créneaux disponibles (objets Airtable bruts)
 let view            = 'month';
 let sidebarTab      = 'demandes';
 let activeId        = null;
 let refuseConfirmId = null;
+let pendingSlotId   = null; // créneau à pré-sélectionner dans le formulaire manuel
 let cur             = new Date();
 let selectedDate    = todayDateString();
 
@@ -56,10 +58,6 @@ function formatSidebarDate(dateString) {
 
 function mapRecord(record) {
   const f = record.fields;
-  const nomComplet = (f.nom_client || '').trim();
-  const spaceIdx   = nomComplet.indexOf(' ');
-  const prenom     = spaceIdx >= 0 ? nomComplet.slice(0, spaceIdx) : nomComplet;
-  const nom        = spaceIdx >= 0 ? nomComplet.slice(spaceIdx + 1) : '';
 
   let submittedAt = '—';
   if (f.date_creation_demande) {
@@ -68,22 +66,21 @@ function mapRecord(record) {
   }
 
   return {
-    id:                 record.id,
-    prenom,
-    nom,
-    date:               f.date_rdv           || '',
-    heure:              f.heure_rdv          || '',
-    prestations:        f.prestation         ? [f.prestation] : [],
-    bijoux:             !!f.bijoux,
-    remarque:           f.notes_client       || '',
-    booking_uid_calcom: f.booking_uid_calcom || '',
-    email_client:       f.email_client       || '',
-    telephone_client:   f.telephone_client   || '',
-    statut_interne:     f.statut_interne     || '',
-    taille_ongles:      f.taille_ongles      || '',
-    photo_modele_url:   f.photo_modele_url   || '',
-    photo_ongles_url:   f.photo_ongles_url   || '',
-    age_client:         f.age_client         || '',
+    id:               record.id,
+    prenom:           f.prenom_client       || '',
+    nom:              f.nom_client          || '',
+    date:             f.date_rdv            || '',
+    heure:            f.heure_rdv           || '',
+    prestations:      f.prestation          ? [f.prestation] : [],
+    bijoux:           !!f.bijoux,
+    remarque:         f.notes_client        || '',
+    telephone_client: f.telephone_client    || '',
+    statut_interne:   f.statut_interne      || '',
+    taille_ongles:    f.taille_ongles       || '',
+    photo_modele_url: f.photo_modele?.[0]?.url || '',
+    photo_ongles_url: f.photo_ongles?.[0]?.url || '',
+    age_client:       f.age_client          || '',
+    creneau_id:       f.creneau_id          || '',
     submittedAt,
   };
 }
@@ -100,6 +97,7 @@ async function loadData() {
     const data    = await res.json();
     const records = (data.records || []).map(mapRecord);
 
+    slots           = data.slots || [];
     appointments    = records.filter(r => r.statut_interne === 'accepte');
     pendingRequests = records.filter(r =>
       r.statut_interne === 'en_attente_validation' ||
@@ -108,6 +106,7 @@ async function loadData() {
   } catch (e) {
     appointments    = [];
     pendingRequests = [];
+    slots           = [];
     toast('Erreur de chargement', e.message);
   }
 
@@ -216,25 +215,49 @@ function renderSidebarRdv() {
     .filter(a => a.date === selectedDate)
     .sort((a, b) => a.heure.localeCompare(b.heure));
 
+  const daySlots = slots
+    .filter(s => s.fields.date === selectedDate)
+    .sort((a, b) => (a.fields.heure || '').localeCompare(b.fields.heure || ''));
+
   const listEl = document.getElementById('sbList');
-  if (!dayAppointments.length) {
-    listEl.innerHTML = '<div class="empty-st"><div class="empty-ico">🌸</div>Aucun rendez-vous<br>ce jour-là.</div>';
+
+  if (!dayAppointments.length && !daySlots.length) {
+    listEl.innerHTML = '<div class="empty-st"><div class="empty-ico">🌸</div>Aucun rendez-vous<br>ni créneau ce jour-là.</div>';
     return;
   }
 
-  listEl.innerHTML = dayAppointments.map(a =>
-    `<div class="rdv-card" data-id="${escHtml(a.id)}">` +
-      `<div class="rdv-badge">${escHtml(a.heure)}</div>` +
-      `<div class="rdv-info">` +
-        `<div class="rdv-nm">${escHtml(a.prenom)} ${escHtml(a.nom)}</div>` +
-        `<div class="rdv-pr">${escHtml(formatPrestations(a))}</div>` +
-      `</div>` +
-      `<div class="rdv-ch">›</div>` +
-    `</div>`
-  ).join('');
+  let html = '';
 
-  listEl.querySelectorAll('.rdv-card').forEach(card =>
+  if (dayAppointments.length) {
+    html += dayAppointments.map(a =>
+      `<div class="rdv-card" data-id="${escHtml(a.id)}">` +
+        `<div class="rdv-badge">${escHtml(a.heure)}</div>` +
+        `<div class="rdv-info">` +
+          `<div class="rdv-nm">${escHtml(a.prenom)} ${escHtml(a.nom)}</div>` +
+          `<div class="rdv-pr">${escHtml(formatPrestations(a))}</div>` +
+        `</div>` +
+        `<div class="rdv-ch">›</div>` +
+      `</div>`
+    ).join('');
+  }
+
+  if (daySlots.length) {
+    html += '<div class="sb-slots-hdr">Créneaux libres</div>';
+    html += daySlots.map(s =>
+      `<div class="rdv-card rdv-card-slot" data-slot-id="${escHtml(s.id)}">` +
+        `<div class="rdv-badge rdv-badge-slot">${escHtml(s.fields.heure || '')}</div>` +
+        `<div class="rdv-info"><div class="rdv-nm">Disponible</div></div>` +
+      `</div>`
+    ).join('');
+  }
+
+  listEl.innerHTML = html;
+
+  listEl.querySelectorAll('.rdv-card:not(.rdv-card-slot)').forEach(card =>
     card.addEventListener('click', () => openDetail(card.dataset.id))
+  );
+  listEl.querySelectorAll('.rdv-card-slot').forEach(card =>
+    card.addEventListener('click', () => openSlotDetail(card.dataset.slotId))
   );
 }
 
@@ -267,6 +290,7 @@ function renderMonth() {
     const extra    = dayAppts.length - 2;
 
     html += `<div class="${cls}" data-ds="${ds}"><div class="dn">${d}</div>`;
+
     visible.forEach(a => {
       html += `<div class="pill" data-id="${escHtml(a.id)}">` +
         `<span class="pt">${escHtml(a.heure)}</span>` +
@@ -274,6 +298,17 @@ function renderMonth() {
         `</div>`;
     });
     if (extra > 0) html += `<div class="mmore">+${extra} autre${extra > 1 ? 's' : ''}</div>`;
+
+    const daySlots = slots.filter(s => s.fields.date === ds);
+    daySlots.slice(0, 1).forEach(s => {
+      html += `<div class="pill pill-slot" data-slot-id="${escHtml(s.id)}">` +
+        `<span class="pt">${escHtml(s.fields.heure || '')}</span>` +
+        `<span class="pn">libre</span>` +
+        `</div>`;
+    });
+    const slotExtra = daySlots.length - 1;
+    if (slotExtra > 0) html += `<div class="mmore">+${slotExtra} créneau${slotExtra > 1 ? 'x' : ''}</div>`;
+
     html += '</div>';
   }
 
@@ -288,8 +323,11 @@ function renderMonth() {
   document.querySelectorAll('#cal .mc:not(.out)').forEach(cell =>
     cell.addEventListener('click', () => selectDay(cell.dataset.ds))
   );
-  document.querySelectorAll('#cal .pill').forEach(pill =>
+  document.querySelectorAll('#cal .pill:not(.pill-slot)').forEach(pill =>
     pill.addEventListener('click', e => { e.stopPropagation(); openDetail(pill.dataset.id); })
+  );
+  document.querySelectorAll('#cal .pill-slot').forEach(pill =>
+    pill.addEventListener('click', e => { e.stopPropagation(); openSlotDetail(pill.dataset.slotId); })
   );
 }
 
@@ -333,8 +371,11 @@ function renderWeek() {
   weekDays.forEach(x => {
     const ds       = toDateString(x);
     const dayAppts = appointments.filter(a => a.date === ds);
+    const daySlots = slots.filter(s => s.fields.date === ds);
+
     html += '<div class="wdc">';
     HOURS.forEach(() => { html += '<div class="wsl"></div>'; });
+
     dayAppts.forEach(a => {
       const [hh, mm]     = a.heure.split(':').map(Number);
       const minutesFrom8 = (hh - 8) * 60 + mm;
@@ -345,6 +386,19 @@ function renderWeek() {
           `<div class="wan">${escHtml(a.prenom)}</div>` +
         `</div>`;
     });
+
+    daySlots.forEach(s => {
+      const heure = s.fields.heure || '';
+      const [hh, mm]     = heure.split(':').map(Number);
+      const minutesFrom8 = (hh - 8) * 60 + mm;
+      if (minutesFrom8 < 0 || minutesFrom8 >= 13 * 60) return;
+      html +=
+        `<div class="wapt wapt-slot" style="top:${minutesFrom8 / 60 * 60}px" data-slot-id="${escHtml(s.id)}">` +
+          `<div class="wat">${escHtml(heure)}</div>` +
+          `<div class="wan">Libre</div>` +
+        `</div>`;
+    });
+
     html += '</div>';
   });
 
@@ -354,8 +408,11 @@ function renderWeek() {
   document.querySelectorAll('#cal .whd').forEach(col =>
     col.addEventListener('click', () => selectDay(col.dataset.ds))
   );
-  document.querySelectorAll('#cal .wapt').forEach(apt =>
+  document.querySelectorAll('#cal .wapt:not(.wapt-slot)').forEach(apt =>
     apt.addEventListener('click', () => openDetail(apt.dataset.id))
+  );
+  document.querySelectorAll('#cal .wapt-slot').forEach(apt =>
+    apt.addEventListener('click', () => openSlotDetail(apt.dataset.slotId))
   );
 }
 
@@ -394,6 +451,18 @@ function openDetail(id) {
 function closeDetail() {
   activeId = null;
   document.getElementById('dov').classList.add('hidden');
+}
+
+// ── Slot detail — ouvre le formulaire manuel pré-rempli ────────────────────
+
+function openSlotDetail(id) {
+  const s = slots.find(x => x.id === id);
+  if (!s) return;
+  openManualForm();
+  pendingSlotId = id;
+  const dateInput = document.getElementById('mDate');
+  dateInput.value = s.fields.date || '';
+  dateInput.dispatchEvent(new Event('change'));
 }
 
 // ── Demandes modal ─────────────────────────────────────────────────────────
@@ -471,13 +540,9 @@ async function acceptRequest(id) {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({
-        booking_uid:        req.booking_uid_calcom,
         action:             'accept',
         airtable_record_id: req.id,
-        telephone_client:   req.telephone_client,
-        nom_client:         req.prenom + ' ' + req.nom,
-        date_rdv:           req.date,
-        heure_rdv:          req.heure,
+        creneau_id:         req.creneau_id,
       }),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -498,7 +563,7 @@ async function refuseRequest(id) {
     refuseConfirmId = id;
     document.querySelectorAll('.dem-refuse, .sb-dem-refuse').forEach(btn => {
       if (btn.dataset.id === id) {
-        btn.textContent = '⚠️ Confirmer ?';
+        btn.textContent = '⚠️ Confirmer ?';
         btn.classList.replace('bdd', 'bd2');
       }
     });
@@ -516,11 +581,9 @@ async function refuseRequest(id) {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({
-        booking_uid:        req.booking_uid_calcom,
         action:             'refuse',
         airtable_record_id: req.id,
-        telephone_client:   req.telephone_client,
-        nom_client:         req.prenom + ' ' + req.nom,
+        creneau_id:         req.creneau_id,
       }),
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -579,18 +642,16 @@ document.getElementById('dov').addEventListener('click',   e => { if (e.target.i
 document.getElementById('demOv').addEventListener('click', e => { if (e.target.id === 'demOv') closeDemandes(); });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeDetail(); closeDemandes(); }
+  if (e.key === 'Escape') { closeDetail(); closeDemandes(); closeSlotForm(); }
 });
 
 // ── Manual booking form ────────────────────────────────────────────────────
 
-// Prestations qui nécessitent le choix de taille
 const PRESTS_TAILLE = ['Pose simple', 'Nail art', 'Freestyle chargée'];
-// Ces 3 prestations sont mutuellement exclusives entre elles
 const PRESTS_EXCLU  = new Set(['Pose simple', 'Nail art', 'Freestyle chargée']);
 
-let selectedSlot       = null;        // ISO string du créneau Cal.com choisi
-let selectedTaille     = null;        // 'Court' | 'Moyen' | 'Long'
+let selectedSlot        = null;       // creneau_id Airtable du créneau choisi
+let selectedTaille      = null;       // 'Court' | 'Moyen' | 'Long'
 let selectedPrestations = new Set();  // prestations sélectionnées (multi)
 
 function formatSlotDayHeader(dateStr) {
@@ -601,7 +662,6 @@ function formatSlotDayHeader(dateStr) {
 }
 
 function openManualForm() {
-  // Reset all fields
   ['mPrenom','mNom','mTel','mNotes'].forEach(id => { document.getElementById(id).value = ''; });
   document.getElementById('mAge').value  = '';
   document.getElementById('mDate').value = '';
@@ -613,8 +673,8 @@ function openManualForm() {
   selectedSlot        = null;
   selectedTaille      = null;
   selectedPrestations = new Set();
+  pendingSlotId       = null;
 
-  // Hide dynamic sections
   document.getElementById('slotsSection').classList.add('hidden');
   document.getElementById('slotsLoading').classList.add('hidden');
   document.getElementById('slotsEmpty').classList.add('hidden');
@@ -622,11 +682,9 @@ function openManualForm() {
   document.getElementById('slotsGrid').innerHTML     = '';
   document.getElementById('slotsDayHdr').textContent = '';
 
-  // Reset prestation + taille buttons
   document.querySelectorAll('.popt').forEach(b => b.classList.remove('on'));
   document.querySelectorAll('.taille-opt').forEach(b => b.classList.remove('on'));
 
-  // Set min date to today
   document.getElementById('mDate').min = todayDateString();
 
   document.getElementById('manOv').classList.remove('hidden');
@@ -637,7 +695,7 @@ function closeManualForm() {
   document.getElementById('manOv').classList.add('hidden');
 }
 
-// Load available slots when date changes
+// Charge les créneaux disponibles quand la date change
 document.getElementById('mDate').addEventListener('change', async function () {
   const date = this.value;
   if (!date) return;
@@ -661,19 +719,17 @@ document.getElementById('mDate').addEventListener('change', async function () {
 
     if (!res.ok) throw new Error(data.error || `Erreur HTTP ${res.status}`);
 
-    const slots = (data.data && data.data[date]) || [];
-    if (!slots.length) {
+    const availableSlots = data.slots || [];
+    if (!availableSlots.length) {
       slotsEmpty.classList.remove('hidden');
       return;
     }
 
     document.getElementById('slotsDayHdr').textContent = formatSlotDayHeader(date);
 
-    slotsGrid.innerHTML = slots.map(s => {
-      const d     = new Date(s.start);
-      const label = d.toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' });
-      return `<button type="button" class="slot-btn" data-iso="${escHtml(s.start)}">${label}</button>`;
-    }).join('');
+    slotsGrid.innerHTML = availableSlots.map(s =>
+      `<button type="button" class="slot-btn" data-creneau-id="${escHtml(s.id)}">${escHtml(s.heure)}</button>`
+    ).join('');
 
     slotsSection.classList.remove('hidden');
 
@@ -681,9 +737,16 @@ document.getElementById('mDate').addEventListener('change', async function () {
       btn.addEventListener('click', () => {
         slotsGrid.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('on'));
         btn.classList.add('on');
-        selectedSlot = btn.dataset.iso;
+        selectedSlot = btn.dataset.creneauId;
       });
     });
+
+    // Pré-sélectionner le créneau si ouvert depuis le calendrier
+    if (pendingSlotId) {
+      const preBtn = slotsGrid.querySelector(`[data-creneau-id="${pendingSlotId}"]`);
+      if (preBtn) { preBtn.classList.add('on'); selectedSlot = pendingSlotId; }
+      pendingSlotId = null;
+    }
   } catch (e) {
     slotsLoading.classList.add('hidden');
     slotsEmpty.classList.remove('hidden');
@@ -691,18 +754,15 @@ document.getElementById('mDate').addEventListener('change', async function () {
   }
 });
 
-// Prestation grid — multi-sélection avec exclusivité
+// Grille prestation — multi-sélection avec exclusivité
 document.querySelectorAll('.popt').forEach(btn => {
   btn.addEventListener('click', () => {
     const v = btn.dataset.v;
 
     if (selectedPrestations.has(v)) {
-      // Désélectionner
       selectedPrestations.delete(v);
       btn.classList.remove('on');
     } else {
-      // Si la prestation cliquée est dans le groupe exclusif,
-      // désélectionner toute autre prestation exclusive déjà choisie
       if (PRESTS_EXCLU.has(v)) {
         PRESTS_EXCLU.forEach(excl => {
           if (excl !== v && selectedPrestations.has(excl)) {
@@ -715,7 +775,6 @@ document.querySelectorAll('.popt').forEach(btn => {
       btn.classList.add('on');
     }
 
-    // Afficher taille si au moins une prestation nécessitant la taille est sélectionnée
     const showTaille = [...selectedPrestations].some(p => PRESTS_TAILLE.includes(p));
     document.getElementById('tailleSection').classList.toggle('hidden', !showTaille);
     if (!showTaille) {
@@ -725,7 +784,7 @@ document.querySelectorAll('.popt').forEach(btn => {
   });
 });
 
-// Taille buttons
+// Boutons taille
 document.querySelectorAll('.taille-opt').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.taille-opt').forEach(b => b.classList.remove('on'));
@@ -734,7 +793,7 @@ document.querySelectorAll('.taille-opt').forEach(btn => {
   });
 });
 
-// Save manual booking
+// Enregistrer le RDV manuel
 document.getElementById('saveManBtn').addEventListener('click', async () => {
   const prenom     = document.getElementById('mPrenom').value.trim();
   const nom        = document.getElementById('mNom').value.trim();
@@ -745,7 +804,6 @@ document.getElementById('saveManBtn').addEventListener('click', async () => {
   const notes      = document.getElementById('mNotes').value.trim();
   const errEl      = document.getElementById('manErr');
 
-  // Validation
   const needTaille = [...selectedPrestations].some(p => PRESTS_TAILLE.includes(p));
   let errMsg = '';
   if (!prenom || !nom || !telephone)       errMsg = 'Prénom, nom et téléphone sont obligatoires.';
@@ -755,15 +813,15 @@ document.getElementById('saveManBtn').addEventListener('click', async () => {
   else if (needTaille && !selectedTaille)  errMsg = 'Veuillez choisir une taille d\'ongles.';
 
   if (errMsg) {
-    errEl.textContent     = errMsg;
-    errEl.style.display   = 'block';
+    errEl.textContent   = errMsg;
+    errEl.style.display = 'block';
     return;
   }
   errEl.style.display = 'none';
 
   const btn = document.getElementById('saveManBtn');
-  btn.disabled     = true;
-  btn.textContent  = '⏳ Enregistrement…';
+  btn.disabled    = true;
+  btn.textContent = '⏳ Enregistrement…';
 
   try {
     const res = await fetch('/api/book', {
@@ -774,7 +832,7 @@ document.getElementById('saveManBtn').addEventListener('click', async () => {
         age, prestation, bijoux,
         taille_ongles: selectedTaille || '',
         notes,
-        slotStart: selectedSlot,
+        creneau_id: selectedSlot,
       }),
     });
 
@@ -783,7 +841,6 @@ document.getElementById('saveManBtn').addEventListener('click', async () => {
 
     closeManualForm();
     await loadData();
-    // Switch to the day of the new booking
     selectedDate = data.dateRdv;
     setSidebarTab('rdv');
     renderSidebar();
@@ -802,6 +859,69 @@ document.getElementById('sbAdd').addEventListener('click', openManualForm);
 document.getElementById('cancelManBtn').addEventListener('click', closeManualForm);
 document.getElementById('closeMan').addEventListener('click', closeManualForm);
 document.getElementById('manOv').addEventListener('click', e => { if (e.target.id === 'manOv') closeManualForm(); });
+
+// ── Slot creation form ─────────────────────────────────────────────────────
+
+function openSlotForm() {
+  document.getElementById('sDate').value = '';
+  document.getElementById('sHeure').value = '';
+  const errEl = document.getElementById('slotErr');
+  errEl.textContent   = '';
+  errEl.style.display = 'none';
+  document.getElementById('sDate').min = todayDateString();
+  document.getElementById('slotOv').classList.remove('hidden');
+  setTimeout(() => document.getElementById('sDate').focus(), 80);
+}
+
+function closeSlotForm() {
+  document.getElementById('slotOv').classList.add('hidden');
+}
+
+document.getElementById('btnSlot').addEventListener('click', openSlotForm);
+document.getElementById('closeSlot').addEventListener('click', closeSlotForm);
+document.getElementById('cancelSlotBtn').addEventListener('click', closeSlotForm);
+document.getElementById('slotOv').addEventListener('click', e => { if (e.target.id === 'slotOv') closeSlotForm(); });
+
+document.getElementById('saveSlotBtn').addEventListener('click', async () => {
+  const date  = document.getElementById('sDate').value;
+  const heure = document.getElementById('sHeure').value;
+  const errEl = document.getElementById('slotErr');
+
+  if (!date || !heure) {
+    errEl.textContent   = 'Date et heure sont obligatoires.';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+
+  const btn = document.getElementById('saveSlotBtn');
+  btn.disabled    = true;
+  btn.textContent = '⏳ Enregistrement…';
+
+  try {
+    const res = await fetch('/api/slots', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ date, heure }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur serveur');
+
+    closeSlotForm();
+    await loadData();
+    selectedDate = date;
+    setSidebarTab('rdv');
+    renderSidebar();
+    render();
+    toast('Créneau ajouté ✓', formatFullDate(date) + ' à ' + heure);
+  } catch (e) {
+    errEl.textContent   = '⚠️ Erreur : ' + e.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled    = false;
+    btn.textContent = '💾 Enregistrer';
+  }
+});
 
 // ── Init ───────────────────────────────────────────────────────────────────
 loadData();

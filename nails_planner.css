@@ -16,6 +16,8 @@
   --bd: #2a2a2a;
   --tx: #eee;
   --mu: #666;
+  --sl: #0fa89e;
+  --sl2: #0d7d75;
 }
 
 html {
@@ -1272,3 +1274,36 @@ aside {
 @media (max-width: 420px) {
   .pgrid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── CRÉNEAUX DISPONIBLES ─────────────────────────────────────────────────── */
+
+.pill.pill-slot {
+  background: linear-gradient(135deg, var(--sl2), var(--sl));
+  opacity: .85;
+}
+.pill.pill-slot:hover { opacity: .62; }
+
+.wapt.wapt-slot {
+  background: linear-gradient(135deg, var(--sl2), var(--sl));
+  opacity: .80;
+  border: 1px dashed rgba(255,255,255,.22);
+}
+.wapt.wapt-slot:hover { opacity: .60; }
+
+.rdv-badge.rdv-badge-slot {
+  background: linear-gradient(135deg, var(--sl2), var(--sl));
+}
+
+.rdv-card-slot { cursor: pointer; }
+.rdv-card-slot:hover { border-color: var(--sl); }
+
+.sb-slots-hdr {
+  font-size: .6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--sl);
+  padding: 10px 2px 4px;
+}
+
+.slot-modal { max-width: 360px; }

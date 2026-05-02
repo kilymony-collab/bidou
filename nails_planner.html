@@ -19,6 +19,7 @@
     <button class="tvb on" id="btnM">Mois</button>
     <button class="tvb" id="btnW">Semaine</button>
   </div>
+  <button class="dem-btn" id="btnSlot">📅 Créneaux</button>
   <button class="dem-btn" id="btnD">
     Demandes
     <span class="dem-badge hidden" id="demBadge">0</span>
@@ -176,6 +177,39 @@
     <div class="mft">
       <button class="btn bn" id="cancelManBtn">Annuler</button>
       <button class="btn bp" id="saveManBtn">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- AJOUT CRÉNEAU MODAL -->
+<div class="ov hidden" id="slotOv">
+  <div class="modal slot-modal">
+    <div class="mhdr">
+      <div>
+        <div class="mhdr-sub">make_urnails.up</div>
+        <div class="mtit">Ajouter un créneau</div>
+      </div>
+      <button class="mclose" id="closeSlot">✕</button>
+    </div>
+    <div class="mbdy">
+      <div class="fsec">
+        <div class="fsec-title">📅 Date &amp; heure</div>
+        <div class="frow">
+          <div class="fg">
+            <label class="fl">Date *</label>
+            <input class="fi" type="date" id="sDate">
+          </div>
+          <div class="fg">
+            <label class="fl">Heure *</label>
+            <input class="fi" type="time" id="sHeure" step="1800">
+          </div>
+        </div>
+      </div>
+      <div class="ferr" id="slotErr"></div>
+    </div>
+    <div class="mft">
+      <button class="btn bn" id="cancelSlotBtn">Annuler</button>
+      <button class="btn bp" id="saveSlotBtn">💾 Enregistrer</button>
     </div>
   </div>
 </div>

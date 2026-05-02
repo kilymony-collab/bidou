@@ -1,76 +1,123 @@
-// Vercel Serverless Function — proxy Airtable + Make webhook
-// Variables d'environnement nécessaires dans Vercel :
-//   AIRTABLE_API_KEY  — clé API Airtable (Personal Access Token)
-//   AIRTABLE_BASE_ID  — ID de la base (ex: appPIwjQ4rPPpmjTO)
-//   MAKE_WEBHOOK_S3   — URL du webhook Make Scénario 3
+// Vercel Serverless Function — RDV + Créneaux
+// Variables d'environnement nécessaires :
+//   AIRTABLE_API_KEY  — Personal Access Token
+//   AIRTABLE_BASE_ID  — ID de la base (appPIwjQ4rPPpmjTO)
 
-const AIRTABLE_TABLE = 'tblXe7OerG4Dyhibe';
+const BOOKINGS_TABLE = 'tblXe7OerG4Dyhibe';
+const CRENEAUX_TABLE = 'tbl7qSvmQikr65Jmc';
+
+function atPatch(baseId, apiKey, table, recordId, fields) {
+  return fetch(`https://api.airtable.com/v0/${baseId}/${table}/${recordId}`, {
+    method:  'PATCH',
+    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ fields }),
+  });
+}
 
 export default async function handler(req, res) {
-  // CORS — permet à l'interface d'appeler cette fonction
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Origin',  '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+  const apiKey = process.env.AIRTABLE_API_KEY;
+  const baseId = process.env.AIRTABLE_BASE_ID;
+
+  if (!apiKey || !baseId) {
+    return res.status(500).json({ error: 'Variables d\'environnement manquantes.' });
   }
 
-  // ── GET : récupère les rendez-vous depuis Airtable ────────────────────────
+  // ── GET : récupère les bookings actifs + créneaux disponibles ────────────
   if (req.method === 'GET') {
-    const apiKey = process.env.AIRTABLE_API_KEY;
-    const baseId = process.env.AIRTABLE_BASE_ID;
-
-    if (!apiKey || !baseId) {
-      return res.status(500).json({ error: 'Variables d\'environnement manquantes.' });
-    }
-
-    // Récupère les RDV avec un statut actif (en attente ou accepté)
-    const formula = encodeURIComponent(
+    const bookingsFormula = encodeURIComponent(
       "OR({statut_interne}='en_attente_validation',{statut_interne}='accepte',{statut_interne}='en_attente_formulaire')"
     );
-    const url = `https://api.airtable.com/v0/${baseId}/${AIRTABLE_TABLE}?filterByFormula=${formula}&sort[0][field]=date_rdv&sort[0][direction]=asc&sort[1][field]=heure_rdv&sort[1][direction]=asc`;
+    const bookingsUrl = `https://api.airtable.com/v0/${baseId}/${BOOKINGS_TABLE}?filterByFormula=${bookingsFormula}&sort[0][field]=date_rdv&sort[0][direction]=asc&sort[1][field]=heure_rdv&sort[1][direction]=asc`;
+
+    const creneauxFormula = encodeURIComponent("{statut}='disponible'");
+    const creneauxUrl = `https://api.airtable.com/v0/${baseId}/${CRENEAUX_TABLE}?filterByFormula=${creneauxFormula}&sort[0][field]=date&sort[0][direction]=asc&sort[1][field]=heure&sort[1][direction]=asc`;
+
+    const headers = { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' };
 
     try {
-      const airtableRes = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const [bookingsRes, creneauxRes] = await Promise.all([
+        fetch(bookingsUrl, { headers }),
+        fetch(creneauxUrl, { headers }),
+      ]);
 
-      if (!airtableRes.ok) {
-        const err = await airtableRes.text();
-        return res.status(airtableRes.status).json({ error: err });
+      if (!bookingsRes.ok) {
+        const err = await bookingsRes.text();
+        return res.status(bookingsRes.status).json({ error: err });
+      }
+      if (!creneauxRes.ok) {
+        const err = await creneauxRes.text();
+        return res.status(creneauxRes.status).json({ error: err });
       }
 
-      const data = await airtableRes.json();
-      return res.status(200).json(data);
+      const bookingsData  = await bookingsRes.json();
+      const creneauxData  = await creneauxRes.json();
+
+      return res.status(200).json({
+        records: bookingsData.records || [],
+        slots:   creneauxData.records || [],
+      });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
   }
 
-  // ── POST : envoie une action (accept/refuse) vers Make Scénario 3 ─────────
+  // ── POST : accepter ou refuser une demande (PATCH direct Airtable) ────────
   if (req.method === 'POST') {
-    const webhookUrl = process.env.MAKE_WEBHOOK_S3;
+    const { action, airtable_record_id, creneau_id } = req.body;
 
-    if (!webhookUrl) {
-      return res.status(500).json({ error: 'MAKE_WEBHOOK_S3 non configuré.' });
+    if (!action || !airtable_record_id) {
+      return res.status(400).json({ error: 'action et airtable_record_id sont obligatoires.' });
     }
 
+    const now = new Date().toISOString();
+
     try {
-      const makeRes = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(req.body)
-      });
+      if (action === 'accept') {
+        const patches = [
+          atPatch(baseId, apiKey, BOOKINGS_TABLE, airtable_record_id, {
+            statut_interne:      'accepte',
+            decision_horodatage: now,
+          }),
+        ];
+        if (creneau_id) {
+          patches.push(atPatch(baseId, apiKey, CRENEAUX_TABLE, creneau_id, { statut: 'accepte' }));
+        }
+        const results = await Promise.all(patches);
+        for (const r of results) {
+          if (!r.ok) {
+            const err = await r.text();
+            return res.status(500).json({ error: 'Airtable PATCH: ' + err });
+          }
+        }
+        return res.status(200).json({ ok: true });
 
-      if (!makeRes.ok) {
-        return res.status(500).json({ error: 'Make webhook a échoué.' });
+      } else if (action === 'refuse') {
+        const patches = [
+          atPatch(baseId, apiKey, BOOKINGS_TABLE, airtable_record_id, {
+            statut_interne:      'refuse',
+            decision_horodatage: now,
+          }),
+        ];
+        if (creneau_id) {
+          patches.push(atPatch(baseId, apiKey, CRENEAUX_TABLE, creneau_id, { statut: 'disponible' }));
+        }
+        const results = await Promise.all(patches);
+        for (const r of results) {
+          if (!r.ok) {
+            const err = await r.text();
+            return res.status(500).json({ error: 'Airtable PATCH: ' + err });
+          }
+        }
+        return res.status(200).json({ ok: true });
+
+      } else {
+        return res.status(400).json({ error: 'action doit être "accept" ou "refuse".' });
       }
-
-      return res.status(200).json({ ok: true });
     } catch (e) {
       return res.status(500).json({ error: e.message });
     }
