@@ -115,8 +115,27 @@ export default async function handler(req, res) {
         }
         return res.status(200).json({ ok: true });
 
+      } else if (action === 'cancel') {
+        const patches = [
+          atPatch(baseId, apiKey, BOOKINGS_TABLE, airtable_record_id, {
+            statut_interne:      'annule',
+            decision_horodatage: now,
+          }),
+        ];
+        if (creneau_id) {
+          patches.push(atPatch(baseId, apiKey, CRENEAUX_TABLE, creneau_id, { statut: 'disponible' }));
+        }
+        const results = await Promise.all(patches);
+        for (const r of results) {
+          if (!r.ok) {
+            const err = await r.text();
+            return res.status(500).json({ error: 'Airtable PATCH: ' + err });
+          }
+        }
+        return res.status(200).json({ ok: true });
+
       } else {
-        return res.status(400).json({ error: 'action doit être "accept" ou "refuse".' });
+        return res.status(400).json({ error: 'action doit être "accept", "refuse" ou "cancel".' });
       }
     } catch (e) {
       return res.status(500).json({ error: e.message });

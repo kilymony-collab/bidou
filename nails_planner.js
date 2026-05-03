@@ -362,9 +362,9 @@ function openDetail(id) {
   if (a.remarque)
     body += `<div class="dr"><span class="dic">📝</span><div><div class="dlb">Remarque</div><div class="dv">${escHtml(a.remarque)}</div></div></div>`;
   if (a.photo_modele_url)
-    body += `<div class="dr"><span class="dic">🖼️</span><div><div class="dlb">Modèle souhaité</div><div class="dv"><img class="detail-img" src="${escHtml(a.photo_modele_url)}" alt="Modèle"></div></div></div>`;
+    body += `<div class="dr"><span class="dic">🖼️</span><div><div class="dlb">Modèle souhaité</div><div class="dv"><a href="${escHtml(a.photo_modele_url)}" target="_blank" rel="noopener"><img class="detail-img" src="${escHtml(a.photo_modele_url)}" alt="Modèle" onerror="this.parentElement.parentElement.parentElement.parentElement.style.display='none'"></a></div></div></div>`;
   if (a.photo_ongles_url)
-    body += `<div class="dr"><span class="dic">💅</span><div><div class="dlb">Ongle naturel</div><div class="dv"><img class="detail-img" src="${escHtml(a.photo_ongles_url)}" alt="Ongle naturel"></div></div></div>`;
+    body += `<div class="dr"><span class="dic">💅</span><div><div class="dlb">Ongle naturel</div><div class="dv"><a href="${escHtml(a.photo_ongles_url)}" target="_blank" rel="noopener"><img class="detail-img" src="${escHtml(a.photo_ongles_url)}" alt="Ongle naturel" onerror="this.parentElement.parentElement.parentElement.parentElement.style.display='none'"></a></div></div></div>`;
 
   document.getElementById('dbdy').innerHTML = body;
 
@@ -376,6 +376,12 @@ function openDetail(id) {
       `<button class="btn bn"  id="dClose">Fermer</button>`;
     document.getElementById('dAccept').addEventListener('click', () => { closeDetail(); acceptRequest(id); });
     document.getElementById('dRefuse').addEventListener('click', () => { closeDetail(); refuseRequest(id); });
+    document.getElementById('dClose').addEventListener('click', closeDetail);
+  } else if (a.statut_interne === 'accepte') {
+    footer.innerHTML =
+      `<button class="btn bdd" id="dCancel">🚫 Annuler le RDV</button>` +
+      `<button class="btn bn"  id="dClose">Fermer</button>`;
+    document.getElementById('dCancel').addEventListener('click', () => { closeDetail(); cancelAppointment(id); });
     document.getElementById('dClose').addEventListener('click', closeDetail);
   } else {
     footer.innerHTML = `<button class="btn bn" id="dClose">Fermer</button>`;
@@ -693,6 +699,42 @@ async function refuseRequest(id) {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     await loadData();
     toast('Demande refusée', req.prenom + ' ' + req.nom);
+  } catch (e) {
+    toast('Erreur', e.message);
+  }
+}
+
+// ── Cancel appointment ─────────────────────────────────────────────────────
+
+async function cancelAppointment(id) {
+  const appt = appointments.find(a => a.id === id);
+  if (!appt) return;
+
+  try {
+    toast('Annulation…', 'Mise à jour en cours');
+    const res = await fetch('/api/rdv', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        action:             'cancel',
+        airtable_record_id: appt.id,
+        creneau_id:         appt.creneau_id,
+      }),
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    await loadData();
+    toast('RDV annulé', appt.prenom + ' ' + appt.nom);
+
+    // Ouvre WhatsApp avec un message pré-rédigé pour informer la cliente
+    if (appt.telephone_client) {
+      const tel = appt.telephone_client.replace(/\s+/g, '');
+      const msg = encodeURIComponent(
+        `Bonjour ${appt.prenom} 💅\n` +
+        `Je suis au regret de vous informer que votre rendez-vous du ${formatFullDate(appt.date)} à ${appt.heure} a dû être annulé.\n` +
+        `N'hésitez pas à reprendre un créneau. À bientôt ! 🌸`
+      );
+      window.open(`https://wa.me/${tel}?text=${msg}`, '_blank');
+    }
   } catch (e) {
     toast('Erreur', e.message);
   }
