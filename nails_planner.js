@@ -362,9 +362,19 @@ function openDetail(id) {
   if (a.remarque)
     body += `<div class="dr"><span class="dic">📝</span><div><div class="dlb">Remarque</div><div class="dv">${escHtml(a.remarque)}</div></div></div>`;
   if (a.photo_modele_url)
-    body += `<div class="dr"><span class="dic">🖼️</span><div><div class="dlb">Modèle souhaité</div><div class="dv"><a href="${escHtml(a.photo_modele_url)}" target="_blank" rel="noopener"><img class="detail-img" src="${escHtml(a.photo_modele_url)}" alt="Modèle" onerror="this.parentElement.parentElement.parentElement.parentElement.style.display='none'"></a></div></div></div>`;
+    body += `<div class="dr"><span class="dic">🖼️</span><div><div class="dlb">Modèle souhaité</div><div class="dv">
+      <a href="${escHtml(a.photo_modele_url)}" target="_blank" rel="noopener">
+        <img class="detail-img" src="${escHtml(a.photo_modele_url)}" alt="Modèle"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+        <span class="img-fallback" style="display:none">🔗 Voir l'image (lien)</span>
+      </a></div></div></div>`;
   if (a.photo_ongles_url)
-    body += `<div class="dr"><span class="dic">💅</span><div><div class="dlb">Ongle naturel</div><div class="dv"><a href="${escHtml(a.photo_ongles_url)}" target="_blank" rel="noopener"><img class="detail-img" src="${escHtml(a.photo_ongles_url)}" alt="Ongle naturel" onerror="this.parentElement.parentElement.parentElement.parentElement.style.display='none'"></a></div></div></div>`;
+    body += `<div class="dr"><span class="dic">💅</span><div><div class="dlb">Ongle naturel</div><div class="dv">
+      <a href="${escHtml(a.photo_ongles_url)}" target="_blank" rel="noopener">
+        <img class="detail-img" src="${escHtml(a.photo_ongles_url)}" alt="Ongle naturel"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+        <span class="img-fallback" style="display:none">🔗 Voir l'image (lien)</span>
+      </a></div></div></div>`;
 
   document.getElementById('dbdy').innerHTML = body;
 
@@ -375,8 +385,25 @@ function openDetail(id) {
       `<button class="btn bp"  id="dAccept">✓ Valider</button>` +
       `<button class="btn bn"  id="dClose">Fermer</button>`;
     document.getElementById('dAccept').addEventListener('click', () => { closeDetail(); acceptRequest(id); });
-    document.getElementById('dRefuse').addEventListener('click', () => { closeDetail(); refuseRequest(id); });
     document.getElementById('dClose').addEventListener('click', closeDetail);
+    const refuseBtn = document.getElementById('dRefuse');
+    refuseBtn.addEventListener('click', () => {
+      if (refuseConfirmId !== id) {
+        refuseConfirmId = id;
+        refuseBtn.textContent = '⚠️ Confirmer ?';
+        refuseBtn.classList.replace('bdd', 'bd2');
+        setTimeout(() => {
+          refuseConfirmId = null;
+          if (refuseBtn.isConnected) {
+            refuseBtn.textContent = '✕ Refuser';
+            refuseBtn.classList.replace('bd2', 'bdd');
+          }
+        }, 3000);
+      } else {
+        closeDetail();
+        refuseRequest(id);
+      }
+    });
   } else if (a.statut_interne === 'accepte') {
     footer.innerHTML =
       `<button class="btn bdd" id="dCancel">🚫 Annuler le RDV</button>` +
@@ -1071,7 +1098,7 @@ let _refreshTimer = null;
 
 function startRefresh() {
   if (_refreshTimer) clearInterval(_refreshTimer);
-  _refreshTimer = setInterval(loadData, 30_000);
+  _refreshTimer = setInterval(loadData, 15_000);
 }
 
 function stopRefresh() {

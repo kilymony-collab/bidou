@@ -686,6 +686,14 @@ aside {
   margin-top: 2px;
 }
 
+.img-fallback {
+  font-size: .78rem;
+  color: var(--pk2);
+  text-decoration: underline;
+  margin-top: 4px;
+  display: block;
+}
+
 .detail-img {
   max-width: 100%;
   max-height: 220px;
