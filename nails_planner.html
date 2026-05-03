@@ -9,6 +9,7 @@
 <body>
 
 <header>
+  <button class="ham-btn" id="hamBtn">☰</button>
   <div class="logo">💅 make_urnails.up</div>
   <div class="nav">
     <button class="ibtn" id="prev">‹</button>
@@ -19,31 +20,39 @@
     <button class="tvb on" id="btnM">Mois</button>
     <button class="tvb" id="btnW">Semaine</button>
   </div>
-  <button class="dem-btn" id="btnSlot">📅 Créneaux</button>
-  <button class="dem-btn" id="btnD">
-    Demandes
-    <span class="dem-badge hidden" id="demBadge">0</span>
-  </button>
 </header>
 
-<div class="layout">
-  <aside>
-    <div class="sb-tabs">
-      <button class="sb-tab on" id="tabDem">
-        Demandes
-        <span class="sb-tab-badge hidden" id="sbTabBadge">0</span>
+<div class="cal-wrap">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar">
+    <nav class="sbnav">
+      <button class="sbnav-btn" data-tab="creneaux">
+        <span class="sbnav-ico">📅</span>
+        <span class="sbnav-lbl">Créneaux</span>
       </button>
-      <button class="sb-tab" id="tabRdv">RDV du jour</button>
+      <button class="sbnav-btn" data-tab="demandes">
+        <span class="sbnav-ico">📋</span>
+        <span class="sbnav-lbl">Demandes</span>
+        <span class="sbnav-badge hidden" id="sbnBadge">0</span>
+      </button>
+      <button class="sbnav-btn" data-tab="rdv">
+        <span class="sbnav-ico">✅</span>
+        <span class="sbnav-lbl">RDV</span>
+      </button>
+      <button class="sbnav-btn" data-tab="infos">
+        <span class="sbnav-ico">ℹ️</span>
+        <span class="sbnav-lbl">Infos</span>
+      </button>
+    </nav>
+    <div class="sbcont hidden" id="sbCont">
+      <div class="sbcont-hdr">
+        <div class="sbcont-ttl" id="sbContTtl"></div>
+        <div id="sbContAct"></div>
+      </div>
+      <div class="sbcont-body" id="sbContBody"></div>
     </div>
-    <div class="sb-head hidden" id="sbHead">
-      <div class="sb-label">Rendez-vous du</div>
-      <div class="sb-date" id="sbDate">—</div>
-    </div>
-    <div class="sb-list" id="sbList"></div>
-    <button class="sb-add" id="sbAdd">
-      <span class="icon-add">+</span> Nouveau rendez-vous
-    </button>
-  </aside>
+  </div>
 
   <main id="cal"></main>
 </div>
@@ -59,25 +68,8 @@
       <button class="mclose" id="closeDetail">✕</button>
     </div>
     <div class="mbdy" id="dbdy"></div>
-    <div class="mft">
+    <div class="mft" id="dft">
       <button class="btn bn" id="closeDBtn">Fermer</button>
-    </div>
-  </div>
-</div>
-
-<!-- DEMANDES MODAL -->
-<div class="ov hidden" id="demOv">
-  <div class="modal dem-modal">
-    <div class="mhdr">
-      <div>
-        <div class="mhdr-sub">make_urnails.up</div>
-        <div class="mtit">Demandes de rendez-vous</div>
-      </div>
-      <button class="mclose" id="closeDemX">✕</button>
-    </div>
-    <div class="mbdy" id="demList"></div>
-    <div class="mft">
-      <button class="btn bn" id="closeDemBtn">Fermer</button>
     </div>
   </div>
 </div>
@@ -94,7 +86,6 @@
     </div>
     <div class="mbdy">
 
-      <!-- Cliente -->
       <div class="fsec">
         <div class="fsec-title">👤 Cliente</div>
         <div class="frow">
@@ -119,7 +110,6 @@
         </div>
       </div>
 
-      <!-- Date & Créneau -->
       <div class="fsec">
         <div class="fsec-title">📅 Date &amp; créneau</div>
         <div class="fg">
@@ -134,7 +124,6 @@
         </div>
       </div>
 
-      <!-- Prestation -->
       <div class="fsec">
         <div class="fsec-title">💅 Prestation *</div>
         <div class="pgrid" id="mPrestGrid">
@@ -147,8 +136,6 @@
           <button type="button" class="popt" data-v="Dépose extérieure">Dépose extérieure</button>
           <button type="button" class="popt" data-v="Réparation">Réparation</button>
         </div>
-
-        <!-- Taille des ongles (conditionnel) -->
         <div class="hidden" id="tailleSection">
           <label class="fl" style="margin-top:10px">Taille des ongles *</label>
           <div class="taille-grid">
@@ -157,14 +144,12 @@
             <button type="button" class="taille-opt" data-v="Long">Long</button>
           </div>
         </div>
-
         <label class="bijoux-label">
           <input type="checkbox" id="mBijoux" class="bijoux-cb">
           <span>💎 Bijoux</span>
         </label>
       </div>
 
-      <!-- Remarque -->
       <div class="fsec">
         <div class="fsec-title">📝 Remarque <span class="opt-tag">optionnel</span></div>
         <div class="fg">
@@ -210,6 +195,38 @@
     <div class="mft">
       <button class="btn bn" id="cancelSlotBtn">Annuler</button>
       <button class="btn bp" id="saveSlotBtn">💾 Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- INFO PAGE -->
+<div class="ov hidden" id="infoOv">
+  <div class="info-page">
+    <div class="info-hdr">
+      <div class="mtit">Vue d'ensemble</div>
+      <button class="mclose" id="closeInfo">✕</button>
+    </div>
+    <div class="info-cols">
+      <div class="info-col">
+        <div class="info-col-hdr">
+          <span>✅ RDV</span>
+          <button class="info-add-btn" id="infoAddRdv" title="Nouveau RDV">+</button>
+        </div>
+        <div class="info-col-body" id="infoRdvBody"></div>
+      </div>
+      <div class="info-col">
+        <div class="info-col-hdr">
+          <span>📋 Demandes <span class="info-badge hidden" id="infoBadge">0</span></span>
+        </div>
+        <div class="info-col-body" id="infoDemBody"></div>
+      </div>
+      <div class="info-col">
+        <div class="info-col-hdr">
+          <span>📅 Créneaux</span>
+          <button class="info-add-btn" id="infoAddSlot" title="Ajouter un créneau">+</button>
+        </div>
+        <div class="info-col-body" id="infoCreBody"></div>
+      </div>
     </div>
   </div>
 </div>

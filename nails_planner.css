@@ -18,6 +18,8 @@
   --mu: #666;
   --sl: #0fa89e;
   --sl2: #0d7d75;
+  --dm: #d97706;
+  --dm2: #92400e;
 }
 
 html {
@@ -1259,11 +1261,10 @@ aside {
 
 /* MOBILE */
 @media (max-width: 768px) {
-  body { overflow: auto; height: auto; border: none; }
-  .layout { flex-direction: column; overflow: visible; }
-  aside { width: 100%; border-right: none; border-top: 1px solid var(--bd); overflow: visible; order: 2; }
-  .sb-list { overflow-y: visible; max-height: none; }
-  #cal { overflow-y: visible; order: 1; padding: 8px; }
+  body { border: none; }
+  .sidebar { width: 220px; margin-left: -220px; }
+  .sidebar.open { margin-left: 0; }
+  #cal { padding: 8px; }
   .frow { grid-template-columns: 1fr; }
   header { gap: 8px; padding: 8px 12px; }
   .pgrid { grid-template-columns: repeat(2, 1fr) !important; }
@@ -1307,3 +1308,265 @@ aside {
 }
 
 .slot-modal { max-width: 360px; }
+
+/* ── DEMANDES (orange) ───────────────────────────────────────────────────── */
+
+.pill.pill-dem {
+  background: linear-gradient(135deg, var(--dm2), var(--dm));
+  opacity: .9;
+}
+.pill.pill-dem:hover { opacity: .68; }
+
+.wapt.wapt-dem {
+  background: linear-gradient(135deg, var(--dm2), var(--dm));
+  opacity: .85;
+  border: 1px dashed rgba(255,255,255,.18);
+}
+.wapt.wapt-dem:hover { opacity: .65; }
+
+/* ── HAMBURGER BUTTON ────────────────────────────────────────────────────── */
+
+.ham-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--bd);
+  background: var(--s2);
+  color: var(--mu);
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: border-color .15s, color .15s;
+}
+
+.ham-btn:hover { border-color: var(--pk); color: var(--pk); }
+.ham-btn.open  { border-color: var(--pk); color: var(--pk2); background: var(--s3); }
+
+/* ── LAYOUT WRAP ─────────────────────────────────────────────────────────── */
+
+.cal-wrap {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── SIDEBAR ─────────────────────────────────────────────────────────────── */
+
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--s1);
+  border-right: 1px solid var(--bd);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-left: -240px;
+  transition: margin-left .28s ease;
+}
+
+.sidebar.open { margin-left: 0; }
+
+.sbnav {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--bd);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sbnav-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--mu);
+  cursor: pointer;
+  font-size: .78rem;
+  font-weight: 600;
+  transition: background .12s, color .12s;
+  text-align: left;
+  position: relative;
+}
+
+.sbnav-btn:hover { background: var(--s2); color: var(--tx); }
+.sbnav-btn.on    { background: var(--s3); color: var(--pk2); }
+
+.sbnav-ico { font-size: .95rem; flex-shrink: 0; }
+.sbnav-lbl { flex: 1; }
+
+.sbnav-badge {
+  background: var(--pk);
+  color: #fff;
+  border-radius: 8px;
+  min-width: 16px;
+  height: 16px;
+  font-size: .55rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
+
+.sbcont {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sbcont-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--bd);
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.sbcont-ttl {
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--pk2);
+  flex: 1;
+}
+
+.sbcont-add {
+  padding: 3px 9px;
+  font-size: .68rem;
+  border-radius: 12px;
+}
+
+.sbcont-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+/* ── INFO PAGE OVERLAY ───────────────────────────────────────────────────── */
+
+#infoOv {
+  align-items: stretch;
+  justify-content: stretch;
+  padding: 0;
+}
+
+.info-page {
+  background: var(--s1);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.info-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--bd);
+  background: linear-gradient(135deg, #160010, #2a0020);
+  flex-shrink: 0;
+}
+
+.info-cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  flex: 1;
+  overflow: hidden;
+}
+
+.info-col {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--bd);
+  overflow: hidden;
+}
+
+.info-col:last-child { border-right: none; }
+
+.info-col-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--bd);
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--pk2);
+  background: var(--s2);
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.info-add-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--pk);
+  background: none;
+  color: var(--pk);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: background .15s, color .15s;
+}
+
+.info-add-btn:hover {
+  background: var(--pk);
+  color: #fff;
+}
+
+.info-badge {
+  background: var(--pk);
+  color: #fff;
+  border-radius: 8px;
+  min-width: 16px;
+  height: 16px;
+  font-size: .55rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
+
+.info-col-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+/* ── MOBILE: info page stacks vertically ─────────────────────────────────── */
+
+@media (max-width: 600px) {
+  .info-cols {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+  .info-col {
+    border-right: none;
+    border-bottom: 1px solid var(--bd);
+    overflow: visible;
+    min-height: 200px;
+  }
+  .info-col-body {
+    overflow-y: visible;
+    max-height: none;
+  }
+}
