@@ -659,6 +659,7 @@ async function acceptRequest(id) {
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     await loadData();
+    notifyOtherTab();
     toast('RDV validé ✓', req.prenom + ' ' + req.nom + ' — ' + req.date + ' à ' + req.heure);
   } catch (e) {
     toast('Erreur', e.message);
@@ -698,6 +699,7 @@ async function refuseRequest(id) {
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     await loadData();
+    notifyOtherTab();
     toast('Demande refusée', req.prenom + ' ' + req.nom);
   } catch (e) {
     toast('Erreur', e.message);
@@ -723,6 +725,7 @@ async function cancelAppointment(id) {
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     await loadData();
+    notifyOtherTab();
     toast('RDV annulé', appt.prenom + ' ' + appt.nom);
 
     // Ouvre WhatsApp avec un message pré-rédigé pour informer la cliente
@@ -953,6 +956,7 @@ document.getElementById('saveManBtn').addEventListener('click', async () => {
 
     closeManualForm();
     await loadData();
+    notifyOtherTab();
     selectedDate = data.dateRdv;
     render();
     toast('RDV ajouté ✓', prenom + ' ' + nom + ' — ' + data.dateRdv + ' à ' + data.heureRdv);
@@ -1009,6 +1013,7 @@ document.getElementById('saveSlotBtn').addEventListener('click', async () => {
 
     closeSlotForm();
     await loadData();
+    notifyOtherTab();
     selectedDate = date;
     render();
     toast('Créneau ajouté ✓', formatFullDate(date) + ' à ' + heure);
@@ -1041,11 +1046,18 @@ async function deleteSlot(id) {
     const res = await fetch(`/api/slots?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     await loadData();
+    notifyOtherTab();
     toast('Créneau supprimé', 'Le créneau a été retiré.');
   } catch (e) {
     toast('Erreur', e.message);
   }
 }
+
+// ── Cross-tab sync ─────────────────────────────────────────────────────────
+
+const _sync = 'BroadcastChannel' in window ? new BroadcastChannel('make_urnails_sync') : null;
+function notifyOtherTab() { _sync?.postMessage({ type: 'refresh' }); }
+if (_sync) { _sync.onmessage = () => loadData(); }
 
 // ── Init ───────────────────────────────────────────────────────────────────
 
@@ -1055,5 +1067,29 @@ if ('Notification' in window && Notification.permission === 'default') {
 
 loadData();
 
-// Auto-refresh toutes les 2 minutes (détecte les nouvelles demandes de Caly)
-setInterval(loadData, 2 * 60 * 1000);
+let _refreshTimer = null;
+
+function startRefresh() {
+  if (_refreshTimer) clearInterval(_refreshTimer);
+  _refreshTimer = setInterval(loadData, 30_000);
+}
+
+function stopRefresh() {
+  if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
+}
+
+startRefresh();
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    stopRefresh();
+  } else {
+    loadData();
+    startRefresh();
+  }
+});
+
+window.addEventListener('online', () => {
+  loadData();
+  startRefresh();
+});
