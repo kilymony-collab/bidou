@@ -24,7 +24,7 @@ export default async function handler(req, res) {
     const { date } = req.query; // YYYY-MM-DD
     if (!date) return res.status(400).json({ error: 'Paramètre date manquant.' });
 
-    const formula = encodeURIComponent(`AND({date}='${date}',{statut}='disponible')`);
+    const formula = encodeURIComponent(`AND(IS_SAME({date},'${date}','day'),{statut}='disponible')`);
     const url = `https://api.airtable.com/v0/${baseId}/${CRENEAUX_TABLE}?filterByFormula=${formula}&sort[0][field]=heure&sort[0][direction]=asc`;
 
     try {

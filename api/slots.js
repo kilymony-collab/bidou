@@ -7,7 +7,7 @@ const CRENEAUX_TABLE = 'tbl7qSvmQikr65Jmc';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin',  '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -16,6 +16,26 @@ export default async function handler(req, res) {
 
   if (!apiKey || !baseId) {
     return res.status(500).json({ error: 'Variables d\'environnement manquantes.' });
+  }
+
+  // ── DELETE : supprimer un créneau ────────────────────────────────────────
+  if (req.method === 'DELETE') {
+    const id = req.query.id;
+    if (!id) return res.status(400).json({ error: 'id est obligatoire.' });
+
+    try {
+      const delRes = await fetch(
+        `https://api.airtable.com/v0/${baseId}/${CRENEAUX_TABLE}/${id}`,
+        { method: 'DELETE', headers: { 'Authorization': `Bearer ${apiKey}` } }
+      );
+      if (!delRes.ok) {
+        const err = await delRes.text();
+        return res.status(500).json({ error: 'Airtable: ' + err });
+      }
+      return res.status(200).json({ ok: true });
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
   }
 
   // ── POST : créer un nouveau créneau ──────────────────────────────────────
@@ -36,7 +56,7 @@ export default async function handler(req, res) {
 
     try {
       // Vérifier doublon
-      const checkFormula = encodeURIComponent(`AND({date}='${date}',{heure}='${heure}')`);
+      const checkFormula = encodeURIComponent(`AND(IS_SAME({date},'${date}','day'),{heure}='${heure}')`);
       const checkRes = await fetch(
         `https://api.airtable.com/v0/${baseId}/${CRENEAUX_TABLE}?filterByFormula=${checkFormula}`,
         { headers }

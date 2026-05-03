@@ -1,9 +1,16 @@
 {
   "functions": {
-    "api/rdv.js":   { "memory": 128, "maxDuration": 10 },
-    "api/book.js":  { "memory": 128, "maxDuration": 10 },
-    "api/slots.js": { "memory": 128, "maxDuration": 10 }
+    "api/rdv.js":    { "memory": 128, "maxDuration": 10 },
+    "api/book.js":   { "memory": 128, "maxDuration": 10 },
+    "api/slots.js":  { "memory": 128, "maxDuration": 10 },
+    "api/notify.js": { "memory": 128, "maxDuration": 15 }
   },
+  "crons": [
+    {
+      "path": "/api/notify",
+      "schedule": "0 0 * * *"
+    }
+  ],
   "rewrites": [
     { "source": "/", "destination": "/nails_planner.html" }
   ]

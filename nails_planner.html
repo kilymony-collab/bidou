@@ -27,28 +27,38 @@
   <!-- SIDEBAR -->
   <div class="sidebar" id="sidebar">
     <nav class="sbnav">
-      <button class="sbnav-btn" data-tab="creneaux">
-        <span class="sbnav-ico">📅</span>
-        <span class="sbnav-lbl">Créneaux</span>
-      </button>
-      <button class="sbnav-btn" data-tab="demandes">
-        <span class="sbnav-ico">📋</span>
-        <span class="sbnav-lbl">Demandes</span>
-        <span class="sbnav-badge hidden" id="sbnBadge">0</span>
-      </button>
-      <button class="sbnav-btn" data-tab="rdv">
-        <span class="sbnav-ico">✅</span>
-        <span class="sbnav-lbl">RDV</span>
-      </button>
-      <button class="sbnav-btn" data-tab="infos">
-        <span class="sbnav-ico">ℹ️</span>
-        <span class="sbnav-lbl">Infos</span>
-      </button>
+      <div class="sbnav-row">
+        <button class="sbnav-btn" data-tab="creneaux">
+          <span class="sbnav-ico">📅</span>
+          <span class="sbnav-lbl">Créneaux</span>
+        </button>
+        <button class="sbn-add" id="sbnAddSlot" title="Ajouter un créneau">+</button>
+      </div>
+      <div class="sbnav-row">
+        <button class="sbnav-btn" data-tab="rdv">
+          <span class="sbnav-ico">✅</span>
+          <span class="sbnav-lbl">RDV</span>
+        </button>
+        <button class="sbn-add" id="sbnAddRdv" title="Nouveau RDV">+</button>
+      </div>
+      <div class="sbnav-row">
+        <button class="sbnav-btn" data-tab="demandes">
+          <span class="sbnav-ico">📋</span>
+          <span class="sbnav-lbl">Demandes</span>
+          <span class="sbnav-badge hidden" id="sbnBadge">0</span>
+        </button>
+      </div>
+      <div class="sbnav-row">
+        <button class="sbnav-btn" data-tab="infos">
+          <span class="sbnav-ico">ℹ️</span>
+          <span class="sbnav-lbl">Infos</span>
+        </button>
+      </div>
     </nav>
     <div class="sbcont hidden" id="sbCont">
       <div class="sbcont-hdr">
+        <button class="sbcont-back" id="sbContBack">←</button>
         <div class="sbcont-ttl" id="sbContTtl"></div>
-        <div id="sbContAct"></div>
       </div>
       <div class="sbcont-body" id="sbContBody"></div>
     </div>

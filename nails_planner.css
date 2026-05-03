@@ -1309,6 +1309,22 @@ aside {
 
 .slot-modal { max-width: 360px; }
 
+.slot-del-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: .85rem;
+  padding: 4px 6px;
+  border-radius: 6px;
+  color: var(--mu);
+  flex-shrink: 0;
+  transition: background .12s, color .12s;
+  line-height: 1;
+}
+.slot-del-btn:hover { background: rgba(255,107,107,.12); color: #ff6b6b; }
+
+.slot-book-area { cursor: pointer; flex: 1; min-width: 0; }
+
 /* ── DEMANDES (orange) ───────────────────────────────────────────────────── */
 
 .pill.pill-dem {
@@ -1415,6 +1431,35 @@ aside {
   padding: 0 3px;
 }
 
+.sbnav-row {
+  display: flex;
+  align-items: center;
+}
+
+.sbnav-row .sbnav-btn { flex: 1; }
+
+.sbn-add {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1.5px solid var(--bd);
+  background: none;
+  color: var(--mu);
+  cursor: pointer;
+  font-size: .9rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 6px;
+  transition: border-color .15s, color .15s;
+}
+
+.sbn-add:hover { border-color: var(--pk); color: var(--pk); }
+
+.sidebar.sb-content-view .sbnav { display: none; }
+
 .sbcont {
   flex: 1;
   display: flex;
@@ -1446,6 +1491,20 @@ aside {
   font-size: .68rem;
   border-radius: 12px;
 }
+
+.sbcont-back {
+  background: none;
+  border: none;
+  color: var(--mu);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  transition: color .12s, background .12s;
+}
+
+.sbcont-back:hover { color: var(--tx); background: var(--s3); }
 
 .sbcont-body {
   flex: 1;

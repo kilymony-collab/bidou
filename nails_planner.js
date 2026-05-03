@@ -8,7 +8,9 @@ let slots           = [];
 let view            = 'month';
 let activeTab       = null;
 let refuseConfirmId = null;
+let deleteConfirmId = null;
 let pendingSlotId   = null;
+let knownPendingIds = null; // null = premier chargement, pas de notif
 let cur             = new Date();
 let selectedDate    = todayDateString();
 
@@ -105,6 +107,31 @@ async function loadData() {
       : e.message;
     toast('Erreur de chargement', msg);
   }
+
+  // Détection des nouvelles demandes (en_attente_validation)
+  const currentValidation = pendingRequests.filter(r => r.statut_interne === 'en_attente_validation');
+  if (knownPendingIds !== null) {
+    const newReqs = currentValidation.filter(r => !knownPendingIds.has(r.id));
+    newReqs.forEach(r => {
+      // Notification browser
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('📋 Nouvelle demande de RDV', {
+          body: `${r.prenom} ${r.nom} — ${formatFullDate(r.date)} à ${r.heure}`,
+        });
+      }
+      // Notification ntfy (silencieuse si non configuré)
+      fetch('/api/notify', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          prenom: r.prenom, nom: r.nom,
+          date:   r.date,   heure: r.heure,
+          prestation: formatPrestations(r),
+        }),
+      }).catch(() => {});
+    });
+  }
+  knownPendingIds = new Set(currentValidation.map(r => r.id));
 
   updateDemBadge();
   render();
@@ -381,11 +408,20 @@ function toggleSidebar() {
   const btn = document.getElementById('hamBtn');
   const open = sb.classList.toggle('open');
   btn.classList.toggle('open', open);
+  if (!open) clearActiveTab();
 }
 
 function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('hamBtn').classList.remove('open');
+  clearActiveTab();
+}
+
+function clearActiveTab() {
+  activeTab = null;
+  document.querySelectorAll('.sbnav-btn').forEach(b => b.classList.remove('on'));
+  document.getElementById('sbCont').classList.add('hidden');
+  document.getElementById('sidebar').classList.remove('sb-content-view');
 }
 
 // ── Sidebar tabs ───────────────────────────────────────────────────────────
@@ -396,14 +432,13 @@ function setActiveTab(tab) {
     document.querySelectorAll('.sbnav-btn').forEach(b => b.classList.remove('on'));
     document.querySelector('.sbnav-btn[data-tab="infos"]').classList.add('on');
     document.getElementById('sbCont').classList.add('hidden');
+    document.getElementById('sidebar').classList.remove('sb-content-view');
     openInfoPage();
     return;
   }
 
   if (activeTab === tab) {
-    activeTab = null;
-    document.querySelectorAll('.sbnav-btn').forEach(b => b.classList.remove('on'));
-    document.getElementById('sbCont').classList.add('hidden');
+    clearActiveTab();
     return;
   }
 
@@ -414,17 +449,7 @@ function setActiveTab(tab) {
   const titles = { rdv: 'Rendez-vous', demandes: 'Demandes', creneaux: 'Créneaux libres' };
   document.getElementById('sbContTtl').textContent = titles[tab] || '';
 
-  const act = document.getElementById('sbContAct');
-  if (tab === 'rdv') {
-    act.innerHTML = '<button class="btn bp sbcont-add" id="sbAdd">+</button>';
-    document.getElementById('sbAdd').addEventListener('click', openManualForm);
-  } else if (tab === 'creneaux') {
-    act.innerHTML = '<button class="btn bp sbcont-add" id="sbAdd">+</button>';
-    document.getElementById('sbAdd').addEventListener('click', openSlotForm);
-  } else {
-    act.innerHTML = '';
-  }
-
+  document.getElementById('sidebar').classList.add('sb-content-view');
   document.getElementById('sbCont').classList.remove('hidden');
   renderSidebarCont();
 }
@@ -499,15 +524,20 @@ function renderSbCreneaux() {
     return;
   }
   body.innerHTML = slots.map(s =>
-    `<div class="rdv-card rdv-card-slot" data-slot-id="${escHtml(s.id)}">` +
+    `<div class="rdv-card rdv-card-slot">` +
       `<div class="rdv-badge rdv-badge-slot">${escHtml(s.fields.heure || '')}</div>` +
-      `<div class="rdv-info">` +
+      `<div class="rdv-info slot-book-area" data-slot-id="${escHtml(s.id)}">` +
         `<div class="rdv-nm">${escHtml(formatFullDate(s.fields.date || ''))}</div>` +
-        `<div class="rdv-pr">Disponible</div>` +
-      `</div></div>`
+        `<div class="rdv-pr">Disponible — cliquer pour réserver</div>` +
+      `</div>` +
+      `<button class="slot-del-btn" data-del-id="${escHtml(s.id)}" title="Supprimer">🗑</button>` +
+    `</div>`
   ).join('');
-  body.querySelectorAll('.rdv-card-slot').forEach(card =>
-    card.addEventListener('click', () => openSlotDetail(card.dataset.slotId))
+  body.querySelectorAll('.slot-book-area').forEach(el =>
+    el.addEventListener('click', () => openSlotDetail(el.dataset.slotId))
+  );
+  body.querySelectorAll('.slot-del-btn').forEach(btn =>
+    btn.addEventListener('click', () => deleteSlot(btn.dataset.delId))
   );
 }
 
@@ -520,8 +550,7 @@ function openInfoPage() {
 
 function closeInfoPage() {
   document.getElementById('infoOv').classList.add('hidden');
-  activeTab = null;
-  document.querySelectorAll('.sbnav-btn').forEach(b => b.classList.remove('on'));
+  clearActiveTab();
 }
 
 function renderInfoPage() {
@@ -582,14 +611,19 @@ function renderInfoPage() {
     creBody.innerHTML = '<div class="empty-st"><div class="empty-ico">📅</div>Aucun créneau.</div>';
   } else {
     creBody.innerHTML = slots.map(s =>
-      `<div class="rdv-card rdv-card-slot" data-slot-id="${escHtml(s.id)}">` +
+      `<div class="rdv-card rdv-card-slot">` +
         `<div class="rdv-badge rdv-badge-slot">${escHtml(s.fields.heure || '')}</div>` +
-        `<div class="rdv-info">` +
+        `<div class="rdv-info slot-book-area" data-slot-id="${escHtml(s.id)}">` +
           `<div class="rdv-nm">${escHtml(formatFullDate(s.fields.date || ''))}</div>` +
-        `</div></div>`
+        `</div>` +
+        `<button class="slot-del-btn" data-del-id="${escHtml(s.id)}" title="Supprimer">🗑</button>` +
+      `</div>`
     ).join('');
-    creBody.querySelectorAll('.rdv-card-slot').forEach(card =>
-      card.addEventListener('click', () => { closeInfoPage(); openSlotDetail(card.dataset.slotId); })
+    creBody.querySelectorAll('.slot-book-area').forEach(el =>
+      el.addEventListener('click', () => { closeInfoPage(); openSlotDetail(el.dataset.slotId); })
+    );
+    creBody.querySelectorAll('.slot-del-btn').forEach(btn =>
+      btn.addEventListener('click', () => deleteSlot(btn.dataset.delId))
     );
   }
 
@@ -698,6 +732,10 @@ document.querySelectorAll('.sbnav-btn').forEach(btn =>
   btn.addEventListener('click', () => setActiveTab(btn.dataset.tab))
 );
 
+document.getElementById('sbnAddSlot').addEventListener('click', e => { e.stopPropagation(); openSlotForm(); });
+document.getElementById('sbnAddRdv').addEventListener('click',  e => { e.stopPropagation(); openManualForm(); });
+document.getElementById('sbContBack').addEventListener('click', clearActiveTab);
+
 // ── Event listeners — detail modal ─────────────────────────────────────────
 
 document.getElementById('closeDetail').addEventListener('click', closeDetail);
@@ -713,7 +751,7 @@ document.getElementById('infoAddSlot').addEventListener('click', () => { closeIn
 // ── Event listeners — keyboard ─────────────────────────────────────────────
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeDetail(); closeSlotForm(); closeInfoPage(); }
+  if (e.key === 'Escape') { closeDetail(); closeSlotForm(); closeManualForm(); closeInfoPage(); clearActiveTab(); }
 });
 
 // ── Manual booking form ────────────────────────────────────────────────────
@@ -939,5 +977,41 @@ document.getElementById('saveSlotBtn').addEventListener('click', async () => {
   }
 });
 
+// ── Delete slot ────────────────────────────────────────────────────────────
+
+async function deleteSlot(id) {
+  if (deleteConfirmId !== id) {
+    deleteConfirmId = id;
+    document.querySelectorAll(`.slot-del-btn[data-del-id="${id}"]`).forEach(btn => {
+      btn.textContent = '⚠️';
+      btn.title = 'Confirmer la suppression';
+    });
+    setTimeout(() => {
+      deleteConfirmId = null;
+      if (activeTab === 'creneaux') renderSbCreneaux();
+      if (!document.getElementById('infoOv').classList.contains('hidden')) renderInfoPage();
+    }, 3000);
+    return;
+  }
+
+  deleteConfirmId = null;
+  try {
+    const res = await fetch(`/api/slots?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    await loadData();
+    toast('Créneau supprimé', 'Le créneau a été retiré.');
+  } catch (e) {
+    toast('Erreur', e.message);
+  }
+}
+
 // ── Init ───────────────────────────────────────────────────────────────────
+
+if ('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission();
+}
+
 loadData();
+
+// Auto-refresh toutes les 2 minutes (détecte les nouvelles demandes de Caly)
+setInterval(loadData, 2 * 60 * 1000);
