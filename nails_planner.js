@@ -684,7 +684,7 @@ async function acceptRequest(id) {
         creneau_id:         req.creneau_id,
       }),
     });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'HTTP ' + res.status); }
     await loadData();
     notifyOtherTab();
     toast('RDV validé ✓', req.prenom + ' ' + req.nom + ' — ' + req.date + ' à ' + req.heure);
@@ -724,7 +724,7 @@ async function refuseRequest(id) {
         creneau_id:         req.creneau_id,
       }),
     });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'HTTP ' + res.status); }
     await loadData();
     notifyOtherTab();
     toast('Demande refusée', req.prenom + ' ' + req.nom);
@@ -740,7 +740,6 @@ async function cancelAppointment(id) {
   if (!appt) return;
 
   try {
-    toast('Annulation…', 'Mise à jour en cours');
     const res = await fetch('/api/rdv', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -750,7 +749,7 @@ async function cancelAppointment(id) {
         creneau_id:         appt.creneau_id,
       }),
     });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'HTTP ' + res.status); }
     await loadData();
     notifyOtherTab();
     toast('RDV annulé', appt.prenom + ' ' + appt.nom);
@@ -1071,7 +1070,7 @@ async function deleteSlot(id) {
   deleteConfirmId = null;
   try {
     const res = await fetch(`/api/slots?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'HTTP ' + res.status); }
     await loadData();
     notifyOtherTab();
     toast('Créneau supprimé', 'Le créneau a été retiré.');

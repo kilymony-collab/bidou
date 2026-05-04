@@ -6,6 +6,11 @@
 const BOOKINGS_TABLE = 'tblXe7OerG4Dyhibe';
 const CRENEAUX_TABLE = 'tbl7qSvmQikr65Jmc';
 
+// Valeurs valides pour statut_interne (singleSelect Airtable — ne pas modifier sans ajouter l'option dans Airtable d'abord)
+const STATUTS_VALIDES = new Set(['en_attente_formulaire', 'en_attente_validation', 'accepte', 'refuse', 'a_verifier', 'annule']);
+// Valeurs valides pour statut des Créneaux
+const STATUTS_CRENEAU_VALIDES = new Set(['disponible', 'en_attente', 'accepte', 'refuse', 'annule']);
+
 function atPatch(baseId, apiKey, table, recordId, fields) {
   return fetch(`https://api.airtable.com/v0/${baseId}/${table}/${recordId}`, {
     method:  'PATCH',
@@ -78,9 +83,13 @@ export default async function handler(req, res) {
 
     try {
       if (action === 'accept') {
+        const newStatut = 'accepte';
+        if (!STATUTS_VALIDES.has(newStatut)) {
+          return res.status(400).json({ error: `Statut invalide : "${newStatut}". Valeurs acceptées : ${[...STATUTS_VALIDES].join(', ')}` });
+        }
         const patches = [
           atPatch(baseId, apiKey, BOOKINGS_TABLE, airtable_record_id, {
-            statut_interne:      'accepte',
+            statut_interne:      newStatut,
             decision_horodatage: now,
           }),
         ];
@@ -97,9 +106,13 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
 
       } else if (action === 'refuse') {
+        const newStatut = 'refuse';
+        if (!STATUTS_VALIDES.has(newStatut)) {
+          return res.status(400).json({ error: `Statut invalide : "${newStatut}". Valeurs acceptées : ${[...STATUTS_VALIDES].join(', ')}` });
+        }
         const patches = [
           atPatch(baseId, apiKey, BOOKINGS_TABLE, airtable_record_id, {
-            statut_interne:      'refuse',
+            statut_interne:      newStatut,
             decision_horodatage: now,
           }),
         ];
@@ -116,9 +129,13 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
 
       } else if (action === 'cancel') {
+        const newStatut = 'annule';
+        if (!STATUTS_VALIDES.has(newStatut)) {
+          return res.status(400).json({ error: `Statut invalide : "${newStatut}". Valeurs acceptées : ${[...STATUTS_VALIDES].join(', ')}` });
+        }
         const patches = [
           atPatch(baseId, apiKey, BOOKINGS_TABLE, airtable_record_id, {
-            statut_interne:      'annule',
+            statut_interne:      newStatut,
             decision_horodatage: now,
           }),
         ];
