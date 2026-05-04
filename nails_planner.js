@@ -361,20 +361,24 @@ function openDetail(id) {
     body += `<div class="dr"><span class="dic">📱</span><div><div class="dlb">Téléphone</div><div class="dv">${escHtml(a.telephone_client)}</div></div></div>`;
   if (a.remarque)
     body += `<div class="dr"><span class="dic">📝</span><div><div class="dlb">Remarque</div><div class="dv">${escHtml(a.remarque)}</div></div></div>`;
-  if (a.photo_modele_url)
-    body += `<div class="dr"><span class="dic">🖼️</span><div><div class="dlb">Modèle souhaité</div><div class="dv">
-      <a href="${escHtml(a.photo_modele_url)}" target="_blank" rel="noopener">
-        <img class="detail-img" src="${escHtml(a.photo_modele_url)}" alt="Modèle"
-          onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
-        <span class="img-fallback" style="display:none">🔗 Voir l'image (lien)</span>
-      </a></div></div></div>`;
-  if (a.photo_ongles_url)
-    body += `<div class="dr"><span class="dic">💅</span><div><div class="dlb">Ongle naturel</div><div class="dv">
-      <a href="${escHtml(a.photo_ongles_url)}" target="_blank" rel="noopener">
-        <img class="detail-img" src="${escHtml(a.photo_ongles_url)}" alt="Ongle naturel"
-          onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
-        <span class="img-fallback" style="display:none">🔗 Voir l'image (lien)</span>
-      </a></div></div></div>`;
+  body += `<div class="dr"><span class="dic">🖼️</span><div><div class="dlb">Modèle souhaité</div><div class="dv">` +
+    (a.photo_modele_url
+      ? `<a href="${escHtml(a.photo_modele_url)}" target="_blank" rel="noopener">
+          <img class="detail-img" src="${escHtml(a.photo_modele_url)}" alt="Modèle"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+          <span class="img-fallback" style="display:none">🔗 Voir l'image (lien)</span>
+        </a>`
+      : `<span class="no-photo">Aucune photo</span>`) +
+    `</div></div></div>`;
+  body += `<div class="dr"><span class="dic">💅</span><div><div class="dlb">Ongles naturels</div><div class="dv">` +
+    (a.photo_ongles_url
+      ? `<a href="${escHtml(a.photo_ongles_url)}" target="_blank" rel="noopener">
+          <img class="detail-img" src="${escHtml(a.photo_ongles_url)}" alt="Ongle naturel"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+          <span class="img-fallback" style="display:none">🔗 Voir l'image (lien)</span>
+        </a>`
+      : `<span class="no-photo">Aucune photo</span>`) +
+    `</div></div></div>`;
 
   document.getElementById('dbdy').innerHTML = body;
 
