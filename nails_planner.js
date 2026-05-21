@@ -758,6 +758,19 @@ async function cancelAppointment(id) {
     notifyOtherTab();
     toast('RDV annulé', appt.prenom + ' ' + appt.nom);
 
+    fetch('/api/notify', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        type:       'cancel',
+        prenom:     appt.prenom,
+        nom:        appt.nom,
+        date:       appt.date,
+        heure:      appt.heure,
+        prestation: formatPrestations(appt),
+      }),
+    }).catch(() => {});
+
     // Ouvre WhatsApp avec un message pré-rédigé pour informer la cliente
     if (appt.telephone_client) {
       const tel = appt.telephone_client.replace(/\s+/g, '');

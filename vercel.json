@@ -1,9 +1,9 @@
 {
   "functions": {
-    "api/rdv.js":    { "memory": 128, "maxDuration": 10 },
-    "api/book.js":   { "memory": 128, "maxDuration": 10 },
-    "api/slots.js":  { "memory": 128, "maxDuration": 10 },
-    "api/notify.js": { "memory": 128, "maxDuration": 15 }
+    "api/rdv.js":    { "maxDuration": 10 },
+    "api/book.js":   { "maxDuration": 10 },
+    "api/slots.js":  { "maxDuration": 10 },
+    "api/notify.js": { "maxDuration": 15 }
   },
   "crons": [
     {

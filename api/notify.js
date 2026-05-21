@@ -20,6 +20,14 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'NTFY_TOPIC non configuré.' });
   }
 
+  function formatDate(dateStr) {
+    if (!dateStr) return '?';
+    const d       = new Date(dateStr + 'T12:00:00Z');
+    const days    = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+    const pad2    = n => String(n).padStart(2, '0');
+    return `${days[d.getUTCDay()]} ${pad2(d.getUTCDate())}/${pad2(d.getUTCMonth() + 1)}/${d.getUTCFullYear()}`;
+  }
+
   async function push(title, message, priority = 'default') {
     return fetch(`${ntfyBase}/${ntfyTopic}`, {
       method:  'POST',
@@ -62,7 +70,6 @@ export default async function handler(req, res) {
       const records = data.records || [];
 
       if (!records.length) {
-        await push('💅 Agenda demain', 'Aucun rendez-vous prévu demain.', 'low');
         return res.status(200).json({ ok: true, count: 0 });
       }
 
@@ -88,11 +95,12 @@ export default async function handler(req, res) {
     }
   }
 
-  // ── POST : nouvelle demande (depuis le frontend ou une Automation Airtable) ─
+  // ── POST : nouvelle demande ou annulation ────────────────────────────────
   if (req.method === 'POST') {
     const b = req.body || {};
 
     // Accepte les deux formats : champs courts (frontend) ou noms Airtable (automation)
+    const type       = b.type        || 'new';
     const prenom     = b.prenom      || b.prenom_client  || '';
     const nom        = b.nom         || b.nom_client     || '';
     const date       = b.date        || b.date_rdv       || '';
@@ -105,12 +113,16 @@ export default async function handler(req, res) {
 
     const message = [
       `${prenom} ${nom}`.trim(),
-      `📅 ${date || '?'} à ${heure || '?'}`,
+      `📅 ${formatDate(date)} à ${heure || '?'}`,
       `💅 ${prestation || '?'}`,
     ].join('\n');
 
     try {
-      await push('📋 Nouvelle demande de RDV', message, 'high');
+      if (type === 'cancel') {
+        await push('🚫 RDV annulé', message, 'high');
+      } else {
+        await push('📋 Nouvelle demande de RDV', message, 'high');
+      }
       return res.status(200).json({ ok: true });
     } catch (e) {
       return res.status(500).json({ error: e.message });
