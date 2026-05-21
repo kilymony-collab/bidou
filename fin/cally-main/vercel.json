@@ -1,0 +1,17 @@
+{
+  "functions": {
+    "api/slots.js":     { "maxDuration": 10 },
+    "api/book.js":      { "maxDuration": 20 },
+    "api/rdv.js":       { "maxDuration": 10 },
+    "api/pro-book.js":  { "maxDuration": 10 },
+    "api/pro-slots.js": { "maxDuration": 10 },
+    "api/notify.js":    { "maxDuration": 15 }
+  },
+  "crons": [
+    { "path": "/api/notify", "schedule": "0 0 * * *" }
+  ],
+  "rewrites": [
+    { "source": "/pro", "destination": "/nails_planner.html" },
+    { "source": "/",    "destination": "/caly.html" }
+  ]
+}
